@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAI Reels CMS</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050505;
+      --panel: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #fff;
+      --muted: #a1a1aa;
+      --accent: #00ff41;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top right, #0b0216 0%, #050505 60%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 { margin: 0 0 10px; }
+    p { color: var(--muted); margin: 0 0 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      backdrop-filter: blur(8px);
+    }
+    label { display: block; margin-bottom: 6px; font-size: 12px; color: var(--muted); }
+    input, textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .reel { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+    .muted { color: var(--muted); font-size: 12px; }
+    @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>EduAI Reels CMS</h1>
+  <p>Manage your own HLS reel streams and metadata.</p>
+
+  <div class="grid">
+    <section class="card">
+      <h3>Add Reel</h3>
+      <label>Admin Token</label>
+      <input id="token" placeholder="CMS admin token" />
+
+      <label>Creator</label>
+      <input id="creator" placeholder="Data Expertise" />
+
+      <label>Handle</label>
+      <input id="handle" placeholder="@data_expertise" />
+
+      <label>Title</label>
+      <input id="title" placeholder="Neural Networks Explained" />
+
+      <label>HLS URL (.m3u8)</label>
+      <input id="hlsUrl" placeholder="https://.../master.m3u8" />
+
+      <label>Poster URL</label>
+      <input id="posterUrl" placeholder="https://.../poster.jpg" />
+
+      <label>YouTube ID (optional fallback)</label>
+      <input id="youtubeId" placeholder="04XBrv4OxNM" />
+
+      <label>Tags (comma-separated)</label>
+      <input id="tags" placeholder="ml, neuralnets" />
+
+      <button id="createBtn">Create Reel</button>
+      <p id="status" class="muted"></p>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content: space-between; align-items:center;">
+        <h3 style="margin:0;">Current Reels</h3>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+      <div id="reelsList"></div>
+    </section>
+  </div>
+
+  <script>
+    async function fetchReels() {
+      const list = document.getElementById('reelsList');
+      list.innerHTML = 'Loading...';
+      const res = await fetch('/api/reels');
+      const data = await res.json();
+      list.innerHTML = '';
+      for (const reel of data.reels || []) {
+        const div = document.createElement('div');
+        div.className = 'reel';
+        div.innerHTML = `
+          <strong>${reel.title}</strong>
+          <div class="muted">${reel.creator} · ${reel.handle}</div>
+          <div class="muted">HLS: ${reel.hlsUrl || '—'}</div>
+          <div class="muted">YT: ${reel.youtubeId || '—'}</div>
+        `;
+        list.appendChild(div);
+      }
+      if (!list.children.length) list.innerHTML = '<span class="muted">No reels yet</span>';
+    }
+
+    async function createReel() {
+      const token = document.getElementById('token').value.trim();
+      const status = document.getElementById('status');
+      status.textContent = 'Creating...';
+
+      const payload = {
+        creator: document.getElementById('creator').value.trim(),
+        handle: document.getElementById('handle').value.trim(),
+        title: document.getElementById('title').value.trim(),
+        hlsUrl: document.getElementById('hlsUrl').value.trim(),
+        posterUrl: document.getElementById('posterUrl').value.trim(),
+        youtubeId: document.getElementById('youtubeId').value.trim(),
+        tags: document.getElementById('tags').value.trim(),
+      };
+
+      const res = await fetch('/api/reels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        status.textContent = err.error || 'Failed';
+        return;
+      }
+
+      status.textContent = 'Reel created successfully';
+      fetchReels();
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', fetchReels);
+    document.getElementById('createBtn').addEventListener('click', createReel);
+    fetchReels();
+  </script>
+</body>
+</html>
