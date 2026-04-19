@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Dimensions, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Dimensions, Pressable, Image, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,7 +45,7 @@ function ReelItem({ item, isActive, height, muted, onToggleMute, onToggleLike, o
       <View style={styles.videoCrop}>
         {isActive && (
           <View style={[styles.videoInner, { width: height * (16 / 9), height }]}> 
-            {item.hlsUrl ? (
+            {item.hlsUrl && Platform.OS !== 'web' ? (
               <HlsVideoPlayer
                 hlsUrl={item.hlsUrl}
                 muted={muted}
