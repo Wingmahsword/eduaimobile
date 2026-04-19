@@ -1,4 +1,5 @@
 {
+  "buildCommand": "echo 'dist is pre-built'",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
