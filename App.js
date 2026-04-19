@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,6 +8,29 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from './src/context/AppContext';
 import RootTabs from './src/navigation/RootTabs';
 import { colors } from './src/constants/theme';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <ScrollView style={{ flex: 1, backgroundColor: '#0a0a0a', padding: 24 }}>
+          <Text style={{ color: '#ff4444', fontSize: 18, fontWeight: 'bold', marginTop: 60 }}>
+            App crashed — runtime error:
+          </Text>
+          <Text style={{ color: '#ff8888', fontSize: 13, marginTop: 12 }}>
+            {this.state.error.toString()}
+          </Text>
+          <Text style={{ color: '#888', fontSize: 11, marginTop: 12 }}>
+            {this.state.error.stack}
+          </Text>
+        </ScrollView>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const navTheme = {
   ...DarkTheme,
@@ -22,15 +46,17 @@ const navTheme = {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaProvider>
-        <AppProvider>
-          <NavigationContainer theme={navTheme}>
-            <StatusBar style="light" />
-            <RootTabs />
-          </NavigationContainer>
-        </AppProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <SafeAreaProvider>
+          <AppProvider>
+            <NavigationContainer theme={navTheme}>
+              <StatusBar style="light" />
+              <RootTabs />
+            </NavigationContainer>
+          </AppProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
