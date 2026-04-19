@@ -1,7 +1,8 @@
 {
-  "buildCommand": "echo 'dist is pre-built'",
-  "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/_expo/:path*", "destination": "/dist/_expo/:path*" },
+    { "source": "/assets/:path*", "destination": "/dist/assets/:path*" },
+    { "source": "/favicon.ico", "destination": "/dist/favicon.ico" },
+    { "source": "/(.*)", "destination": "/dist/index.html" }
   ]
 }
