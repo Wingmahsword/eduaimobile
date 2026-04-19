@@ -47,3 +47,6 @@ cms.log
 # generated native folders
 /ios
 /android
+
+.vercel
+.env*.local
