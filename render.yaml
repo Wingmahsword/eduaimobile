@@ -1,10 +1,11 @@
 services:
-  # CMS Backend API
+  # CMS Backend API — rootDir isolates it from the Expo app entry files
   - type: web
     name: eduai-cms-api
     runtime: node
-    buildCommand: npm ci
-    startCommand: node cms-server/server.js
+    rootDir: cms-server
+    buildCommand: npm install
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,11 +14,11 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
 
-  # Static Web App (Expo Web Export)
+  # Static Web App — Expo web export, served as static files (no Node runtime)
   - type: web
     name: eduai-mobile-web
     runtime: static
-    buildCommand: npm ci && npm run export:web
+    buildCommand: npm install && npx expo export --platform web
     staticPublishPath: dist
     envVars:
       - key: NODE_ENV

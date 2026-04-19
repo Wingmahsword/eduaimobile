@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+cms-server/node_modules/
 
 # Expo
 .expo/
