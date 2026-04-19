@@ -24,7 +24,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "output": "dist",
+      "output": "single-page",
       "bundler": "metro"
     }
   }
