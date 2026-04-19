@@ -3,11 +3,14 @@
 # dependencies
 node_modules/
 cms-server/node_modules/
+# allow pre-built dist assets (fonts live under dist/assets/node_modules/...)
+!dist/
+!dist/**
 
 # Expo
 .expo/
-dist/
 web-build/
+# dist/ is intentionally committed for Vercel static deployment
 expo-env.d.ts
 
 # Native
