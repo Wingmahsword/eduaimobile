@@ -5,7 +5,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 
 const app = express();
-const PORT = process.env.CMS_PORT || 4100;
+const PORT = process.env.PORT || process.env.CMS_PORT || 4100;
 const ADMIN_TOKEN = process.env.CMS_ADMIN_TOKEN || 'eduai-local-admin';
 const DATA_FILE = path.join(__dirname, 'data', 'reels.json');
 

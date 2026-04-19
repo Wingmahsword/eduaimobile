@@ -18,19 +18,21 @@ Double-click `start-all.bat` to start both services:
 Or manual setup:
 - **Service Type**: Web Service
 - **Runtime**: Node
-- **Build Command**: `npm install`
+- **Build Command**: `npm ci`
 - **Start Command**: `node cms-server/server.js`
 - **Environment Variables**:
-  - `CMS_PORT`: 10000 (Render assigns this)
   - `CMS_ADMIN_TOKEN`: (generate a secure token)
 
 ### 2. Deploy Frontend
 
 - **Service Type**: Static Site
-- **Build Command**: `npm install && npm run export:web`
+- **Build Command**: `npm ci && npm run export:web`
 - **Publish Directory**: `dist`
 - **Environment Variables**:
   - `EXPO_PUBLIC_CMS_BASE_URL`: (your CMS service URL from step 1)
+
+Important: do not create the frontend as a Node Web Service with `yarn start` or `node src/index.js`.
+It must be a Static Site service so Render serves the exported `dist` folder.
 
 ### 3. HLS Streaming on Render
 

@@ -3,13 +3,11 @@ services:
   - type: web
     name: eduai-cms-api
     runtime: node
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: node cms-server/server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: CMS_PORT
-        value: 10000
       - key: CMS_ADMIN_TOKEN
         generateValue: true
     healthCheckPath: /api/health
@@ -19,7 +17,7 @@ services:
   - type: web
     name: eduai-mobile-web
     runtime: static
-    buildCommand: npm install && npx expo export --platform web
+    buildCommand: npm ci && npm run export:web
     staticPublishPath: dist
     envVars:
       - key: NODE_ENV
