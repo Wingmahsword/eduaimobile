@@ -1,5 +1,5 @@
 services:
-  # CMS Backend API — rootDir isolates it from the Expo app entry files
+  # ── CMS Backend API (Node + Supabase) ──────────────────────────────────────
   - type: web
     name: eduai-cms-api
     runtime: node
@@ -10,21 +10,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: CMS_ADMIN_TOKEN
-        generateValue: true
+        generateValue: true        # Render generates a random token; copy it from the dashboard
+      - key: SUPABASE_URL
+        sync: false                # Fill in Render dashboard: your Supabase project URL
+      - key: SUPABASE_SERVICE_KEY
+        sync: false                # Fill in Render dashboard: Supabase service_role key (Settings → API)
     healthCheckPath: /api/health
     autoDeploy: true
-
-  # Static Web App — Expo web export, served as static files (no Node runtime)
-  - type: web
-    name: eduai-mobile-web
-    runtime: static
-    buildCommand: npm install && npx expo export --platform web
-    staticPublishPath: dist
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: EXPO_PUBLIC_CMS_BASE_URL
-        fromService:
-          name: eduai-cms-api
-          type: web
-          property: url

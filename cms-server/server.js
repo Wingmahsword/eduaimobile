@@ -1,109 +1,113 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs/promises');
 const path = require('path');
-const { randomUUID } = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || process.env.CMS_PORT || 4100;
 const ADMIN_TOKEN = process.env.CMS_ADMIN_TOKEN || 'eduai-local-admin';
-const DATA_FILE = path.join(__dirname, 'data', 'reels.json');
 
-app.use(cors());
+// Service-role key bypasses RLS — required for CMS write operations
+const supabase = createClient(
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_KEY || ''
+);
+
+app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '1mb' }));
 app.use('/cms', express.static(path.join(__dirname, 'public')));
-
-async function readReels() {
-  const raw = await fs.readFile(DATA_FILE, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function writeReels(reels) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(reels, null, 2) + '\n', 'utf8');
-}
+app.get('/', (_req, res) => res.redirect('/cms'));
 
 function adminAuth(req, res, next) {
   const incoming = req.headers['x-admin-token'];
   if (!incoming || incoming !== ADMIN_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized admin token' });
+    return res.status(401).json({ error: 'Unauthorized — invalid admin token' });
   }
   return next();
 }
 
-function normalizeReel(payload) {
+// Frontend uses camelCase; Supabase table uses snake_case
+function toRow(p) {
+  const handle = p.handle || '@unknown';
   return {
-    id: payload.id || randomUUID(),
-    creator: payload.creator || 'Unknown Creator',
-    handle: payload.handle || '@unknown',
-    avatar: payload.avatar || 'EA',
-    title: payload.title || 'Untitled Reel',
-    likes: payload.likes || '0',
-    comments: payload.comments || '0',
-    youtubeId: payload.youtubeId || '',
-    hlsUrl: payload.hlsUrl || '',
-    posterUrl: payload.posterUrl || '',
-    tags: Array.isArray(payload.tags)
-      ? payload.tags
-      : typeof payload.tags === 'string'
-        ? payload.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+    creator:    p.creator    || 'Unknown Creator',
+    handle,
+    avatar:     p.avatar     || handle.replace('@', '').substring(0, 2).toUpperCase(),
+    title:      p.title      || 'Untitled Reel',
+    likes:      p.likes      || '0',
+    comments:   p.comments   || '0',
+    youtube_id: p.youtubeId  || p.youtube_id  || '',
+    hls_url:    p.hlsUrl     || p.hls_url     || '',
+    poster_url: p.posterUrl  || p.poster_url  || '',
+    tags: Array.isArray(p.tags)
+      ? p.tags
+      : typeof p.tags === 'string'
+        ? p.tags.split(',').map((t) => t.trim()).filter(Boolean)
         : [],
   };
 }
 
+function toApi(r) {
+  return {
+    id:        r.id,
+    creator:   r.creator,
+    handle:    r.handle,
+    avatar:    r.avatar,
+    title:     r.title,
+    likes:     r.likes,
+    comments:  r.comments,
+    youtubeId: r.youtube_id,
+    hlsUrl:    r.hls_url,
+    posterUrl: r.poster_url,
+    tags:      r.tags || [],
+  };
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'eduai-cms', port: PORT });
+  const sbConfigured = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
+  res.json({ ok: true, service: 'eduai-cms', supabase: sbConfigured, port: PORT });
 });
 
 app.get('/api/reels', async (_req, res) => {
-  try {
-    const reels = await readReels();
-    res.json({ reels });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to read reels', details: error.message });
-  }
+  const { data, error } = await supabase
+    .from('reels')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ reels: data.map(toApi) });
 });
 
 app.post('/api/reels', adminAuth, async (req, res) => {
-  try {
-    const reels = await readReels();
-    const reel = normalizeReel(req.body || {});
-    reels.unshift(reel);
-    await writeReels(reels);
-    res.status(201).json({ reel });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create reel', details: error.message });
-  }
+  const { data, error } = await supabase
+    .from('reels')
+    .insert(toRow(req.body || {}))
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json({ reel: toApi(data) });
 });
 
 app.put('/api/reels/:id', adminAuth, async (req, res) => {
-  try {
-    const reels = await readReels();
-    const idx = reels.findIndex((r) => r.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Reel not found' });
-
-    const updated = normalizeReel({ ...reels[idx], ...req.body, id: reels[idx].id });
-    reels[idx] = updated;
-    await writeReels(reels);
-    res.json({ reel: updated });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update reel', details: error.message });
-  }
+  const { data, error } = await supabase
+    .from('reels')
+    .update(toRow(req.body || {}))
+    .eq('id', req.params.id)
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'Reel not found' });
+  res.json({ reel: toApi(data) });
 });
 
 app.delete('/api/reels/:id', adminAuth, async (req, res) => {
-  try {
-    const reels = await readReels();
-    const next = reels.filter((r) => r.id !== req.params.id);
-    if (next.length === reels.length) return res.status(404).json({ error: 'Reel not found' });
-
-    await writeReels(next);
-    res.json({ ok: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete reel', details: error.message });
-  }
+  const { error } = await supabase.from('reels').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
 });
 
 app.listen(PORT, () => {
-  console.log(`EduAI CMS API running at http://localhost:${PORT}`);
-  console.log(`Admin panel: http://localhost:${PORT}/cms`);
+  console.log(`EduAI CMS  →  http://localhost:${PORT}`);
+  console.log(`Admin panel →  http://localhost:${PORT}/cms`);
 });
