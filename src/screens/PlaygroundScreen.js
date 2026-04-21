@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, FlatList, KeyboardAvoidingView, Platform, Easing } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { MotiView } from 'moti';
-import GlassCard from '../components/GlassCard';
+import ScalePressable from '../components/ScalePressable';
 import { colors, spacing, radius, typography } from '../constants/theme';
 import { MODELS } from '../constants/data';
 import { useApp } from '../context/AppContext';
@@ -18,17 +19,34 @@ const STARTERS = [
 
 function TypingDots({ color }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 5, paddingVertical: 2 }}>
+    <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center' }}>
       {[0, 1, 2].map((i) => (
         <MotiView
           key={i}
-          from={{ opacity: 0.3, translateY: 0 }}
-          animate={{ opacity: 1, translateY: -3 }}
-          transition={{ type: 'timing', duration: 620, loop: true, delay: i * 140, easing: Easing.inOut(Easing.ease) }}
-          style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }}
+          from={{ opacity: 0.25, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 10, stiffness: 200, loop: true, delay: i * 160 }}
+          style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: color }}
         />
       ))}
     </View>
+  );
+}
+
+function SendButton({ onPress, disabled, color }) {
+  const sv = useSharedValue(1);
+  const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: sv.value }] }));
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => { sv.value = withSpring(0.85, { damping: 12, stiffness: 500 }); }}
+      onPressOut={() => { sv.value = withSpring(1, { damping: 10, stiffness: 300 }); }}
+      disabled={disabled}
+    >
+      <Animated.View style={[styles.sendBtn, { backgroundColor: disabled ? 'rgba(255,255,255,0.15)' : color }, aStyle]}>
+        <Ionicons name="arrow-up" size={20} color="#fff" />
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -57,126 +75,154 @@ export default function PlaygroundScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <LinearGradient colors={["#050505", "#0B0216"]} style={StyleSheet.absoluteFill} />
+      {/* Header — Instagram DM style */}
+      <MotiView
+        from={{ opacity: 0, translateY: -12 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 240 }}
+        style={styles.header}
+      >
+        <View style={[styles.modelAvatar, { backgroundColor: model.color + '33', borderColor: model.color + '66' }]}>
+          <View style={[styles.modelAvatarDot, { backgroundColor: model.color }]} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerName}>{model.name}</Text>
+          <Text style={styles.headerSub}>{model.org} · AI model</Text>
+        </View>
+        <FlatList
+          horizontal
+          data={MODELS}
+          keyExtractor={(m) => m.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8 }}
+          renderItem={({ item }) => {
+            const active = item.id === model.id;
+            return (
+              <ScalePressable onPress={() => setModel(item)} scaleDown={0.88}>
+                <MotiView
+                  animate={{ scale: active ? 1 : 0.95, opacity: active ? 1 : 0.55 }}
+                  transition={{ type: 'spring', damping: 14 }}
+                  style={[styles.modelPip, { borderColor: item.color, backgroundColor: active ? item.color + '28' : 'transparent' }]}
+                >
+                  <View style={[styles.pipDot, { backgroundColor: item.color }]} />
+                </MotiView>
+              </ScalePressable>
+            );
+          }}
+        />
+      </MotiView>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
         keyboardVerticalOffset={8}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>AI SANDBOX · LIVE</Text>
-            <Text style={styles.title}>Playground</Text>
-          </View>
-          <GlassCard radiusSize={radius.pill} style={styles.statusPill}>
-            <View style={[styles.liveDot, { backgroundColor: model.color }]} />
-            <Text style={styles.statusText}>{model.org}</Text>
-          </GlassCard>
-        </View>
-
-        <FlatList
-          horizontal
-          data={MODELS}
-          keyExtractor={(m) => m.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.md }}
-          renderItem={({ item }) => {
-            const active = item.id === model.id;
-            return (
-              <Pressable onPress={() => setModel(item)}>
-                <MotiView
-                  animate={{ scale: active ? 1.05 : 1 }}
-                  transition={{ type: 'timing', duration: 360, easing: Easing.inOut(Easing.cubic) }}
-                >
-                  <GlassCard
-                    radiusSize={radius.pill}
-                    style={[
-                      styles.modelChip,
-                      active && { backgroundColor: item.color + '28', borderColor: item.color + '88' },
-                    ]}
-                  >
-                    <View style={[styles.modelDot, { backgroundColor: item.color }]} />
-                    <Text style={[styles.modelName, active && { color: '#fff' }]}>{item.name}</Text>
-                  </GlassCard>
-                </MotiView>
-              </Pressable>
-            );
-          }}
-        />
-
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 140 }}
+          contentContainerStyle={styles.chatArea}
+          showsVerticalScrollIndicator={false}
         >
-          {visible.map((m, i) => (
+          {/* Welcome state */}
+          {visible.length <= 1 && (
             <MotiView
-              key={i}
-              from={{ opacity: 0, translateY: 10 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 380, easing: Easing.inOut(Easing.cubic) }}
-              style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }}
+              from={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 16, stiffness: 200 }}
+              style={styles.welcomeCard}
             >
-              {m.role === 'user' ? (
-                <View style={[styles.bubble, { backgroundColor: model.color + '22', borderColor: model.color + '66' }]}> 
-                  <Text style={styles.bubbleText}>{m.content}</Text>
+              <LinearGradient
+                colors={[model.color + '22', model.color + '08']}
+                style={styles.welcomeGrad}
+              >
+                <View style={[styles.welcomeAvatar, { backgroundColor: model.color + '30', borderColor: model.color + '60' }]}>
+                  <Ionicons name="sparkles" size={28} color={model.color} />
                 </View>
-              ) : (
-                <GlassCard radiusSize={radius.lg} style={styles.bubble}>
-                  <Text style={styles.bubbleText}>{m.content}</Text>
-                </GlassCard>
-              )}
-            </MotiView>
-          ))}
-
-          {thinking && (
-            <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ alignSelf: 'flex-start' }}>
-              <GlassCard radiusSize={radius.lg} style={styles.bubble}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <TypingDots color={model.color} />
-                  <Text style={styles.typing}>{model.name} is thinking…</Text>
-                </View>
-              </GlassCard>
+                <Text style={styles.welcomeTitle}>{model.name}</Text>
+                <Text style={styles.welcomeSub}>{model.org} · Ready to help</Text>
+              </LinearGradient>
             </MotiView>
           )}
 
+          {/* Starter prompts */}
           {visible.length <= 1 && (
             <View style={styles.starters}>
+              <Text style={styles.starterLabel}>TRY ASKING</Text>
               {STARTERS.map((s, i) => (
                 <MotiView
                   key={s}
-                  from={{ opacity: 0, translateY: 10 }}
-                  animate={{ opacity: 1, translateY: 0 }}
-                  transition={{ type: 'timing', duration: 420, delay: i * 70, easing: Easing.inOut(Easing.cubic) }}
+                  from={{ opacity: 0, translateX: -16 }}
+                  animate={{ opacity: 1, translateX: 0 }}
+                  transition={{ type: 'spring', damping: 16, stiffness: 200, delay: 120 + i * 60 }}
                 >
-                  <Pressable onPress={() => send(s)}>
-                    <GlassCard radiusSize={radius.md} style={styles.starter}>
-                      <Ionicons name="sparkles-outline" size={12} color={colors.accentSerif} />
+                  <ScalePressable onPress={() => send(s)} scaleDown={0.96}>
+                    <View style={styles.starter}>
+                      <Ionicons name="arrow-forward-circle-outline" size={16} color={model.color} />
                       <Text style={styles.starterText}>{s}</Text>
-                    </GlassCard>
-                  </Pressable>
+                    </View>
+                  </ScalePressable>
                 </MotiView>
               ))}
             </View>
           )}
+
+          {/* Messages */}
+          {visible.map((m, i) => (
+            <MotiView
+              key={i}
+              from={{ opacity: 0, translateY: 12, scale: 0.96 }}
+              animate={{ opacity: 1, translateY: 0, scale: 1 }}
+              transition={{ type: 'spring', damping: 18, stiffness: 280 }}
+              style={[styles.msgRow, m.role === 'user' ? styles.msgRowUser : styles.msgRowAI]}
+            >
+              {m.role !== 'user' && (
+                <View style={[styles.aiBubbleAvatar, { backgroundColor: model.color + '22', borderColor: model.color + '44' }]}>
+                  <View style={[styles.pipDot, { backgroundColor: model.color }]} />
+                </View>
+              )}
+              <View style={[
+                styles.bubble,
+                m.role === 'user'
+                  ? [styles.userBubble, { backgroundColor: model.color + '28', borderColor: model.color + '55' }]
+                  : styles.aiBubble,
+              ]}>
+                <Text style={styles.bubbleText}>{m.content}</Text>
+              </View>
+            </MotiView>
+          ))}
+
+          {/* Thinking indicator */}
+          {thinking && (
+            <MotiView
+              from={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 14 }}
+              style={styles.msgRow}
+            >
+              <View style={[styles.aiBubbleAvatar, { backgroundColor: model.color + '22', borderColor: model.color + '44' }]}>
+                <View style={[styles.pipDot, { backgroundColor: model.color }]} />
+              </View>
+              <View style={styles.aiBubble}>
+                <TypingDots color={model.color} />
+              </View>
+            </MotiView>
+          )}
         </ScrollView>
 
+        {/* Input bar */}
         <View style={styles.inputWrap}>
-          <GlassCard radiusSize={radius.xxl} style={styles.inputBar}>
+          <View style={styles.inputBar}>
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder={`Ask ${model.name} anything…`}
-              placeholderTextColor={colors.textMuted}
+              placeholder={`Message ${model.name}…`}
+              placeholderTextColor="rgba(255,255,255,0.3)"
               style={styles.input}
               multiline
-              onSubmitEditing={() => send()}
+              maxLength={2000}
             />
-            <Pressable onPress={() => send()} style={[styles.sendBtn, sending && { opacity: 0.5 }, { backgroundColor: model.color }]} disabled={sending}>
-              <Ionicons name="arrow-up" size={18} color="#fff" />
-            </Pressable>
-          </GlassCard>
+            <SendButton onPress={() => send()} disabled={sending || !text.trim()} color={model.color} />
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -184,24 +230,40 @@ export default function PlaygroundScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  kicker: { color: colors.accent, fontSize: 10, letterSpacing: 3, fontWeight: '800' },
-  title: { color: colors.text, fontSize: 28, fontWeight: typography.heavy, marginTop: 4, letterSpacing: -1.2, fontFamily: typography.family },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7 },
-  liveDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { color: colors.text, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
-  modelChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  modelDot: { width: 8, height: 8, borderRadius: 4 },
-  modelName: { color: colors.textDim, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  bubble: { borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.05)' },
-  bubbleText: { color: colors.text, lineHeight: 20, fontSize: 14 },
-  typing: { color: colors.textDim, fontStyle: 'italic', fontSize: 12 },
-  starters: { gap: spacing.sm, marginTop: spacing.sm },
-  starter: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 12 },
-  starterText: { color: colors.textDim, fontSize: 13 },
-  inputWrap: { position: 'absolute', left: 12, right: 12, bottom: Platform.OS === 'ios' ? 94 : 86 },
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, padding: 6 },
-  input: { flex: 1, maxHeight: 120, color: colors.text, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, outlineStyle: 'none' },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  root: { flex: 1, backgroundColor: '#000' },
+
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.lg, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  modelAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  modelAvatarDot: { width: 14, height: 14, borderRadius: 7 },
+  headerName: { color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: typography.family },
+  headerSub: { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 1 },
+  modelPip: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  pipDot: { width: 10, height: 10, borderRadius: 5 },
+
+  chatArea: { padding: spacing.lg, gap: 12, paddingBottom: 120 },
+
+  welcomeCard: { alignSelf: 'center', width: '80%', marginBottom: 8 },
+  welcomeGrad: { borderRadius: radius.xl, padding: 24, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  welcomeAvatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  welcomeTitle: { color: '#fff', fontSize: 18, fontWeight: '800', fontFamily: typography.family },
+  welcomeSub: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
+
+  starters: { gap: 8, marginBottom: 8 },
+  starterLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 4 },
+  starter: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)' },
+  starterText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, flex: 1 },
+
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  msgRowUser: { justifyContent: 'flex-end' },
+  msgRowAI: { justifyContent: 'flex-start' },
+  aiBubbleAvatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  bubble: { maxWidth: '82%', borderRadius: 18, padding: 13, borderWidth: 1 },
+  userBubble: { borderBottomRightRadius: 4 },
+  aiBubble: { borderBottomLeftRadius: 4, backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.1)' },
+  bubbleText: { color: '#fff', fontSize: 14, lineHeight: 21 },
+
+  inputWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingBottom: Platform.OS === 'ios' ? 90 : 82, paddingTop: 8 },
+  inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, backgroundColor: '#111', borderRadius: 26, paddingLeft: 18, paddingRight: 6, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  input: { flex: 1, maxHeight: 120, color: '#fff', fontSize: 15, paddingTop: 8, paddingBottom: 8, outlineStyle: 'none', lineHeight: 20 },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
 });
