@@ -62,6 +62,7 @@ export default function AuthScreen() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showPass, setShowPass] = useState(false);
 
   const isLogin = mode === 'login';
@@ -69,11 +70,34 @@ export default function AuthScreen() {
   const switchMode = (next) => {
     setMode(next);
     setError('');
+    setSuccess('');
     setPassword('');
+  };
+
+  const friendlyError = (msg = '') => {
+    const m = msg.toLowerCase();
+    if (m.includes('rate limit') || m.includes('too many'))
+      return 'Too many attempts. Please wait a few minutes and try again.';
+    if (m.includes('invalid login') || m.includes('invalid credentials') || m.includes('wrong password'))
+      return 'Incorrect email or password.';
+    if (m.includes('already registered') || m.includes('already exists') || m.includes('user already'))
+      return 'An account with this email already exists. Try logging in.';
+    if (m.includes('not configured'))
+      return 'Authentication is not configured. Contact support.';
+    if (m.includes('email') && m.includes('invalid'))
+      return 'Please enter a valid email address.';
+    if (m.includes('password') && (m.includes('6') || m.includes('weak') || m.includes('short')))
+      return 'Password must be at least 6 characters.';
+    if (m.includes('network') || m.includes('fetch'))
+      return 'Network error. Check your connection and try again.';
+    if (m.includes('disabled'))
+      return 'Sign-ups are currently disabled.';
+    return msg.replace(/^AuthApiError:\s*/i, '');
   };
 
   const handleSubmit = async () => {
     setError('');
+    setSuccess('');
     if (!email.trim() || !password.trim()) { setError('Email and password are required.'); return; }
     if (!isLogin && !displayName.trim()) { setError('Please enter your name.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
@@ -85,7 +109,10 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (err) {
-      setError(err.message.replace('AuthApiError: ', ''));
+      setError(friendlyError(err.message));
+    } else if (!isLogin) {
+      setSuccess('Account created! Check your email to confirm, then log in.');
+      setMode('login');
     }
   };
 
@@ -189,6 +216,18 @@ export default function AuthScreen() {
               </Pressable>
             </View>
 
+            {/* Success */}
+            {!!success && (
+              <MotiView
+                from={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={styles.successBox}
+              >
+                <Ionicons name="checkmark-circle-outline" size={15} color="#22C55E" />
+                <Text style={styles.successText}>{success}</Text>
+              </MotiView>
+            )}
+
             {/* Error */}
             {!!error && (
               <MotiView
@@ -257,6 +296,8 @@ const styles = StyleSheet.create({
 
   showPassBtn: { position: 'absolute', right: 16, top: 15 },
 
+  successBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)' },
+  successText: { color: '#22C55E', fontSize: 13, flex: 1 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,59,107,0.1)', borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(255,59,107,0.3)' },
   errorText: { color: '#FF3B6B', fontSize: 13, flex: 1 },
 
