@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, Pressable,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
@@ -11,17 +11,18 @@ import { MotiView } from 'moti';
 import { useAuth } from '../context/AuthContext';
 import { spacing, radius, typography } from '../constants/theme';
 
-function SpringButton({ onPress, loading, children, style }) {
+function SpringButton({ onPress, loading, disabled, children, style }) {
   const sv = useSharedValue(1);
   const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: sv.value }] }));
+  const isDisabled = loading || disabled;
   return (
     <Pressable
       onPress={onPress}
       onPressIn={() => { sv.value = withSpring(0.96, { damping: 14, stiffness: 400 }); }}
       onPressOut={() => { sv.value = withSpring(1, { damping: 10, stiffness: 280 }); }}
-      disabled={loading}
+      disabled={isDisabled}
     >
-      <Animated.View style={[style, aStyle, loading && { opacity: 0.65 }]}>
+      <Animated.View style={[style, aStyle, isDisabled && { opacity: 0.65 }]}> 
         {loading ? <ActivityIndicator color="#000" /> : children}
       </Animated.View>
     </Pressable>
@@ -64,8 +65,18 @@ export default function AuthScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [lockoutUntil, setLockoutUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
 
   const isLogin = mode === 'login';
+  const isLockedOut = lockoutUntil > now;
+  const lockoutSecondsLeft = Math.max(0, Math.ceil((lockoutUntil - now) / 1000));
+
+  useEffect(() => {
+    if (!isLockedOut) return undefined;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isLockedOut]);
 
   const switchMode = (next) => {
     setMode(next);
@@ -95,9 +106,24 @@ export default function AuthScreen() {
     return msg.replace(/^AuthApiError:\s*/i, '');
   };
 
+  const isRateLimitError = (msg = '') => {
+    const m = msg.toLowerCase();
+    return (
+      m.includes('rate limit')
+      || m.includes('too many')
+      || m.includes('over_email_send_rate_limit')
+      || m.includes('too_many_requests')
+    );
+  };
+
   const handleSubmit = async () => {
     setError('');
     setSuccess('');
+    setNow(Date.now());
+    if (isLockedOut) {
+      setError(`Too many attempts. Try again in ${lockoutSecondsLeft}s.`);
+      return;
+    }
     if (!email.trim() || !password.trim()) { setError('Email and password are required.'); return; }
     if (!isLogin && !displayName.trim()) { setError('Please enter your name.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
@@ -109,6 +135,10 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (err) {
+      if (isRateLimitError(err.message)) {
+        const cooldownMs = isLogin ? 60_000 : 120_000;
+        setLockoutUntil(Date.now() + cooldownMs);
+      }
       setError(friendlyError(err.message));
     } else if (!isLogin) {
       setSuccess('Account created! Check your email to confirm, then log in.');
@@ -240,9 +270,22 @@ export default function AuthScreen() {
               </MotiView>
             )}
 
+            {isLockedOut && (
+              <View style={styles.lockoutHintBox}>
+                <Ionicons name="time-outline" size={15} color="#F59E0B" />
+                <Text style={styles.lockoutHintText}>
+                  Login is temporarily paused for {lockoutSecondsLeft}s to avoid API lockouts.
+                </Text>
+              </View>
+            )}
+
             {/* CTA */}
-            <SpringButton onPress={handleSubmit} loading={loading} style={styles.ctaBtn}>
-              <Text style={styles.ctaText}>{isLogin ? 'Log in' : 'Create account'}</Text>
+            <SpringButton onPress={handleSubmit} loading={loading} disabled={isLockedOut} style={styles.ctaBtn}>
+              <Text style={styles.ctaText}>
+                {isLockedOut
+                  ? `Try again in ${lockoutSecondsLeft}s`
+                  : (isLogin ? 'Log in' : 'Create account')}
+              </Text>
             </SpringButton>
 
             {isLogin && (
@@ -300,6 +343,8 @@ const styles = StyleSheet.create({
   successText: { color: '#22C55E', fontSize: 13, flex: 1 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,59,107,0.1)', borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(255,59,107,0.3)' },
   errorText: { color: '#FF3B6B', fontSize: 13, flex: 1 },
+  lockoutHintBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)' },
+  lockoutHintText: { color: '#F59E0B', fontSize: 13, flex: 1 },
 
   ctaBtn: { backgroundColor: '#fff', borderRadius: radius.lg, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   ctaText: { color: '#000', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
