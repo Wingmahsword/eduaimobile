@@ -14,11 +14,14 @@ const storage =
         removeItem: (key) => AsyncStorage.removeItem(key),
       };
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
-  },
-});
+export const supabase =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          storage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: Platform.OS === 'web',
+        },
+      })
+    : null;

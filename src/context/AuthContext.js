@@ -8,6 +8,11 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
+    if (!supabase) {
+      setSession(null);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session ?? null);
       if (session) fetchProfile(session.user.id);
@@ -32,6 +37,7 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp({ email, password, displayName }) {
+    if (!supabase) return { error: new Error('Supabase not configured') };
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -41,16 +47,18 @@ export function AuthProvider({ children }) {
   }
 
   async function signIn({ email, password }) {
+    if (!supabase) return { error: new Error('Supabase not configured') };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   }
 
   async function signOut() {
+    if (!supabase) return;
     await supabase.auth.signOut();
   }
 
   async function updateCoins(newCoins) {
-    if (!session) return;
+    if (!supabase || !session) return;
     await supabase
       .from('profiles')
       .update({ coins: newCoins, updated_at: new Date().toISOString() })
