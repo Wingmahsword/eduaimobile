@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduAI Reels CMS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080808; --surface: #111; --surface2: #1a1a1a;
+      --border: rgba(255,255,255,0.1); --text: #fff; --muted: #71717a;
+      --accent: #06B6D4; --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+    }
+    body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03); position:sticky; top:0; z-index:10; backdrop-filter:blur(12px); }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand-icon { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#06B6D4,#8B5CF6); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:16px; }
+    .brand-name { font-weight:800; font-size:17px; letter-spacing:-0.5px; }
+    .brand-sub { font-size:11px; color:var(--muted); margin-top:1px; }
+    .token-row { display:flex; align-items:center; gap:8px; }
+    .token-input { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 12px; font-size:13px; width:220px; outline:none; }
+    .token-input:focus { border-color:var(--accent); }
+    .badge { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; letter-spacing:0.5px; }
+    .badge-ok  { background:rgba(34,197,94,0.15); color:var(--green); border:1px solid rgba(34,197,94,0.3); }
+    .badge-err { background:rgba(239,68,68,0.15); color:var(--red);   border:1px solid rgba(239,68,68,0.3); }
+    .main { max-width:1100px; margin:0 auto; padding:24px; }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .toolbar h2 { font-size:20px; font-weight:800; letter-spacing:-0.5px; }
+    .toolbar-actions { display:flex; gap:8px; }
+    .status-bar { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 16px; margin-bottom:16px; font-size:12px; display:flex; gap:16px; }
+    .status-bar span { color:var(--muted); }
+    .status-bar b { color:var(--text); }
+    .btn { border:none; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; padding:9px 16px; transition:opacity .15s; }
+    .btn:hover { opacity:.85; } .btn:active { opacity:.65; }
+    .btn-primary { background:var(--accent); color:#000; }
+    .btn-ghost   { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+    .btn-danger  { background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.3); }
+    .btn-edit    { background:rgba(245,158,11,0.12); color:var(--yellow); border:1px solid rgba(245,158,11,0.25); }
+    .btn-sm { padding:6px 12px; font-size:12px; }
+    .table-wrap { overflow-x:auto; border-radius:12px; border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    thead th { text-align:left; padding:12px 16px; background:var(--surface); color:var(--muted); font-size:11px; font-weight:700; letter-spacing:1px; border-bottom:1px solid var(--border); }
+    tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:rgba(255,255,255,0.02); }
+    td { padding:14px 16px; vertical-align:middle; }
+    .cell-title { font-weight:600; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cell-muted { color:var(--muted); font-size:12px; margin-top:2px; }
+    .avatar-chip { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:10px; background:linear-gradient(135deg,#06B6D4,#8B5CF6); font-weight:900; font-size:12px; color:#fff; }
+    .tag-pill { display:inline-block; background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-size:11px; color:var(--muted); margin:2px 2px 0 0; }
+    .actions-cell { display:flex; gap:6px; align-items:center; }
+    .empty { text-align:center; padding:60px 0; color:var(--muted); }
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 20px; font-size:13px; font-weight:600; opacity:0; transition:opacity .25s; pointer-events:none; z-index:100; }
+    #toast.show { opacity:1; }
+    #toast.ok  { border-color:rgba(34,197,94,0.4); color:var(--green); }
+    #toast.err { border-color:rgba(239,68,68,0.4); color:var(--red); }
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; z-index:50; padding:24px; }
+    .overlay.hidden { display:none; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:540px; max-height:90vh; overflow-y:auto; }
+    .modal h3 { font-size:18px; font-weight:800; margin-bottom:20px; letter-spacing:-0.5px; }
+    .field { margin-bottom:14px; }
+    .field label { display:block; font-size:11px; font-weight:700; color:var(--muted); letter-spacing:1px; margin-bottom:6px; }
+    .field input { width:100%; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; outline:none; }
+    .field input:focus { border-color:var(--accent); }
+    .modal-footer { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+    .confirm-modal { max-width:380px; text-align:center; }
+    .confirm-modal p { color:var(--muted); font-size:14px; margin:10px 0 24px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">E</div>
+      <div>
+        <div class="brand-name">EduAI CMS</div>
+        <div class="brand-sub">Reels Management · Vercel Serverless</div>
+      </div>
+    </div>
+    <div class="token-row">
+      <input class="token-input" id="tokenInput" type="password" placeholder="CMS admin token" />
+      <span class="badge" id="tokenBadge">—</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <div id="statusBar" class="status-bar" style="display:none">
+      <span>Supabase: <b id="sbStatus">—</b></span>
+      <span>Token: <b id="tkStatus">—</b></span>
+    </div>
+    <div class="toolbar">
+      <h2>Reels <span id="reelCount" style="color:var(--muted);font-weight:400;font-size:14px;"></span></h2>
+      <div class="toolbar-actions">
+        <button class="btn btn-ghost" onclick="loadReels()">↺ Refresh</button>
+        <button class="btn btn-primary" onclick="openAdd()">+ Add Reel</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th></th><th>TITLE</th><th>CREATOR</th><th>STATS</th><th>YOUTUBE ID</th><th>TAGS</th><th>ACTIONS</th></tr>
+        </thead>
+        <tbody id="reelsTbody">
+          <tr><td colspan="7" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Add / Edit Modal -->
+  <div class="overlay hidden" id="formOverlay">
+    <div class="modal">
+      <h3 id="modalTitle">Add Reel</h3>
+      <input type="hidden" id="editId" />
+      <div class="field"><label>CREATOR NAME</label><input id="f_creator" placeholder="Data Expertise" /></div>
+      <div class="field"><label>HANDLE</label><input id="f_handle" placeholder="@data_expertise" /></div>
+      <div class="field"><label>TITLE</label><input id="f_title" placeholder="Neural Networks Explained" /></div>
+      <div class="field"><label>YOUTUBE VIDEO ID</label><input id="f_youtubeId" placeholder="04XBrv4OxNM" /></div>
+      <div class="field"><label>HLS URL (.m3u8) — optional</label><input id="f_hlsUrl" placeholder="https://…/master.m3u8" /></div>
+      <div class="field"><label>POSTER IMAGE URL — optional</label><input id="f_posterUrl" placeholder="https://images.unsplash.com/…" /></div>
+      <div class="field"><label>LIKES</label><input id="f_likes" placeholder="12K" /></div>
+      <div class="field"><label>COMMENTS</label><input id="f_comments" placeholder="240" /></div>
+      <div class="field"><label>TAGS (comma-separated)</label><input id="f_tags" placeholder="ml, neuralnets" /></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeForm()">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveReel()">Save Reel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Modal -->
+  <div class="overlay hidden" id="delOverlay">
+    <div class="modal confirm-modal">
+      <h3>Delete reel?</h3>
+      <p id="delTitle">This cannot be undone.</p>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button class="btn btn-ghost" onclick="closeDelete()">Cancel</button>
+        <button class="btn btn-danger" id="confirmDelBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const tokenInput = document.getElementById('tokenInput');
+    const tokenBadge = document.getElementById('tokenBadge');
+    tokenInput.value = localStorage.getItem('cms_token') || '';
+    updateBadge();
+    tokenInput.addEventListener('input', () => {
+      localStorage.setItem('cms_token', tokenInput.value);
+      updateBadge();
+    });
+    function getToken() { return tokenInput.value.trim(); }
+    function updateBadge() {
+      const t = getToken();
+      tokenBadge.textContent = t ? 'Token set' : 'No token';
+      tokenBadge.className = 'badge ' + (t ? 'badge-ok' : 'badge-err');
+    }
+
+    let toastTimer;
+    function toast(msg, type='ok') {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.className = `show ${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+    }
+
+    let reels = [];
+    async function loadReels() {
+      const tbody = document.getElementById('reelsTbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Loading…</td></tr>';
+      try {
+        const [reelsRes, healthRes] = await Promise.all([
+          fetch('/api/reels'),
+          fetch('/api/health'),
+        ]);
+        const data = await reelsRes.json();
+        const health = await healthRes.json();
+        reels = data.reels || [];
+        renderTable();
+        document.getElementById('statusBar').style.display = 'flex';
+        document.getElementById('sbStatus').textContent = health.supabase ? '✓ Connected' : '✗ Not configured';
+        document.getElementById('sbStatus').style.color = health.supabase ? 'var(--green)' : 'var(--red)';
+        document.getElementById('tkStatus').textContent = health.adminToken ? '✓ Set' : '✗ Not set';
+        document.getElementById('tkStatus').style.color = health.adminToken ? 'var(--green)' : 'var(--yellow)';
+        if (data._source === 'fallback') toast('⚠ Showing fallback data — configure Supabase in Vercel env vars', 'err');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty" style="color:var(--red)">Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('reelsTbody');
+      document.getElementById('reelCount').textContent = `(${reels.length})`;
+      if (!reels.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No reels yet</td></tr>'; return; }
+      tbody.innerHTML = reels.map(r => `
+        <tr>
+          <td><div class="avatar-chip">${esc(r.avatar||'?')}</div></td>
+          <td><div class="cell-title">${esc(r.title)}</div><div class="cell-muted">${r.hlsUrl?'🎬 HLS':'▶ YouTube only'}</div></td>
+          <td><div>${esc(r.creator)}</div><div class="cell-muted">${esc(r.handle)}</div></td>
+          <td><div>❤ ${esc(r.likes)}</div><div class="cell-muted">💬 ${esc(r.comments)}</div></td>
+          <td>${r.youtubeId?`<a href="https://youtube.com/watch?v=${esc(r.youtubeId)}" target="_blank" style="color:var(--accent);text-decoration:none">${esc(r.youtubeId)}</a>`:'<span class="cell-muted">—</span>'}</td>
+          <td>${(r.tags||[]).map(t=>`<span class="tag-pill">${esc(t)}</span>`).join('')}</td>
+          <td><div class="actions-cell">
+            <button class="btn btn-edit btn-sm" onclick="openEdit('${r.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="openDelete('${r.id}','${esc(r.title)}')">Delete</button>
+          </div></td>
+        </tr>`).join('');
+    }
+
+    function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function openAdd() {
+      document.getElementById('modalTitle').textContent='Add Reel';
+      document.getElementById('editId').value='';
+      ['creator','handle','title','youtubeId','hlsUrl','posterUrl','likes','comments','tags'].forEach(f=>document.getElementById('f_'+f).value='');
+      document.getElementById('saveBtn').textContent='Create Reel';
+      document.getElementById('formOverlay').classList.remove('hidden');
+    }
+    function openEdit(id) {
+      const r = reels.find(x=>x.id===id); if(!r) return;
+      document.getElementById('modalTitle').textContent='Edit Reel';
+      document.getElementById('editId').value=id;
+      document.getElementById('f_creator').value=r.creator||'';
+      document.getElementById('f_handle').value=r.handle||'';
+      document.getElementById('f_title').value=r.title||'';
+      document.getElementById('f_youtubeId').value=r.youtubeId||'';
+      document.getElementById('f_hlsUrl').value=r.hlsUrl||'';
+      document.getElementById('f_posterUrl').value=r.posterUrl||'';
+      document.getElementById('f_likes').value=r.likes||'';
+      document.getElementById('f_comments').value=r.comments||'';
+      document.getElementById('f_tags').value=(r.tags||[]).join(', ');
+      document.getElementById('saveBtn').textContent='Update Reel';
+      document.getElementById('formOverlay').classList.remove('hidden');
+    }
+    function closeForm() { document.getElementById('formOverlay').classList.add('hidden'); }
+
+    async function saveReel() {
+      const token=getToken();
+      if(!token){toast('Enter admin token first','err');return;}
+      const editId=document.getElementById('editId').value;
+      const payload={
+        creator:document.getElementById('f_creator').value.trim(),
+        handle:document.getElementById('f_handle').value.trim(),
+        title:document.getElementById('f_title').value.trim(),
+        youtubeId:document.getElementById('f_youtubeId').value.trim(),
+        hlsUrl:document.getElementById('f_hlsUrl').value.trim(),
+        posterUrl:document.getElementById('f_posterUrl').value.trim(),
+        likes:document.getElementById('f_likes').value.trim(),
+        comments:document.getElementById('f_comments').value.trim(),
+        tags:document.getElementById('f_tags').value.trim(),
+      };
+      if(!payload.title){toast('Title is required','err');return;}
+      const btn=document.getElementById('saveBtn');
+      btn.disabled=true; btn.textContent='Saving…';
+      try {
+        const res=await fetch(editId?`/api/reels/${editId}`:'/api/reels',{
+          method:editId?'PUT':'POST',
+          headers:{'Content-Type':'application/json','x-admin-token':token},
+          body:JSON.stringify(payload)
+        });
+        const data=await res.json();
+        if(!res.ok) throw new Error(data.error||'Failed');
+        toast(editId?'Reel updated ✓':'Reel created ✓','ok');
+        closeForm(); loadReels();
+      } catch(e){ toast(e.message,'err'); }
+      finally{ btn.disabled=false; btn.textContent=editId?'Update Reel':'Create Reel'; }
+    }
+
+    let pendingDeleteId=null;
+    function openDelete(id,title){
+      pendingDeleteId=id;
+      document.getElementById('delTitle').textContent=`"${title}" will be permanently deleted.`;
+      document.getElementById('delOverlay').classList.remove('hidden');
+    }
+    function closeDelete(){ pendingDeleteId=null; document.getElementById('delOverlay').classList.add('hidden'); }
+    document.getElementById('confirmDelBtn').addEventListener('click', async()=>{
+      const token=getToken();
+      if(!token){toast('Enter admin token first','err');closeDelete();return;}
+      try{
+        const res=await fetch(`/api/reels/${pendingDeleteId}`,{method:'DELETE',headers:{'x-admin-token':token}});
+        const data=await res.json();
+        if(!res.ok) throw new Error(data.error||'Delete failed');
+        toast('Reel deleted','ok'); closeDelete(); loadReels();
+      }catch(e){toast(e.message,'err');closeDelete();}
+    });
+    document.getElementById('formOverlay').addEventListener('click',e=>{ if(e.target===e.currentTarget)closeForm(); });
+    document.getElementById('delOverlay').addEventListener('click',e=>{ if(e.target===e.currentTarget)closeDelete(); });
+    loadReels();
+  </script>
+</body>
+</html>

@@ -34,4 +34,7 @@ export const MODELS = [
 ];
 
 export const API_BASE = 'https://aipramgram.vercel.app';
-export const CMS_BASE = process.env.EXPO_PUBLIC_CMS_BASE_URL || 'http://localhost:4100';
+// On web (Vercel) use same-origin so /api/reels hits the Vercel serverless function.
+// On native, fall back to the explicit env var or localhost CMS.
+export const CMS_BASE = process.env.EXPO_PUBLIC_CMS_BASE_URL
+  || (typeof window !== 'undefined' ? '' : 'http://localhost:4100');
