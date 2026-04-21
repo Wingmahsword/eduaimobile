@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,9 +13,9 @@ const THREADS = [
   { id: 'dm5', name: 'su_dev', last: 'Drop your project link', time: '3h', unread: 0 },
 ];
 
-function ThreadItem({ item }) {
+function ThreadItem({ item, onPress }) {
   return (
-    <View style={styles.threadRow}>
+    <Pressable onPress={onPress} style={styles.threadRow}>
       <LinearGradient colors={['#06B6D4', '#8B5CF6']} style={styles.avatar}>
         <Text style={styles.avatarText}>{item.name[0].toUpperCase()}</Text>
       </LinearGradient>
@@ -31,11 +31,12 @@ function ThreadItem({ item }) {
           </View>
         )}
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.45)" />
+    </Pressable>
   );
 }
 
-export default function DMScreen() {
+export default function DMScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
@@ -45,7 +46,9 @@ export default function DMScreen() {
       <FlatList
         data={THREADS}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ThreadItem item={item} />}
+        renderItem={({ item }) => (
+          <ThreadItem item={item} onPress={() => navigation.navigate('DMChat', { thread: item })} />
+        )}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         showsVerticalScrollIndicator={false}
