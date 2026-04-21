@@ -23,6 +23,8 @@ export const REELS = [
   { id: 'r3', creator: 'Microlearn',     handle: '@micro_ai',       avatar: 'ML', title: 'Start Your AI Career Right', likes: '82K', comments: '1.2K', youtubeId: 'cArcHKeM7xg', hlsUrl: 'https://test-streams.mux.dev/test_001/stream.m3u8', posterUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1000', tags: ['career', 'strategy'] },
   { id: 'r4', creator: 'Data Enthusiast',handle: '@data_enthusiast',avatar: 'DH', title: '2024 ML Roadmap',           likes: '124K',comments: '2.4K', youtubeId: 'PGuKUCS0A9A', tags: ['roadmap', 'learning'] },
   { id: 'r5', creator: 'Bear Kids AI',   handle: '@bear_ai',        avatar: 'BK', title: 'Defining ML Simply',        likes: '310K',comments: '18K',  youtubeId: '2U3-fG_VlLY', tags: ['basics', 'ml'] },
+  { id: 'r6', creator: 'Aisha Learns AI', handle: '@aisha.codes',   avatar: 'AL', title: '3 AI Projects For Freshers', likes: '26K', comments: '830', youtubeId: 'fN8Q6k5k6xA', tags: ['projects', 'career'] },
+  { id: 'r7', creator: 'Prompt Monk',     handle: '@prompt_monk',   avatar: 'PM', title: 'Prompt Patterns That Work',  likes: '19K', comments: '402', youtubeId: 'R8Y-4x9f6e4', tags: ['prompts', 'genai'] },
 ];
 
 export const MODELS = [
@@ -34,7 +36,7 @@ export const MODELS = [
 ];
 
 export const API_BASE = 'https://aipramgram.vercel.app';
-// On web (Vercel) use same-origin so /api/reels hits the Vercel serverless function.
-// On native, fall back to the explicit env var or localhost CMS.
+// CMS is hosted on Render for production.
+// Override in env if your Render URL is different.
 export const CMS_BASE = process.env.EXPO_PUBLIC_CMS_BASE_URL
-  || (typeof window !== 'undefined' ? '' : 'http://localhost:4100');
+  || 'https://eduai-cms-api.onrender.com';

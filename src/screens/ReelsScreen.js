@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, AnimatePresence } from 'moti';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import HlsVideoPlayer from '../components/HlsVideoPlayer';
 import { colors, spacing, radius, typography } from '../constants/theme';
@@ -11,7 +12,7 @@ import { useApp } from '../context/AppContext';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 
-function ReelItem({ item, isActive, height, muted, onToggleMute, onToggleLike, onToggleSave }) {
+function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onToggleLike, onToggleSave }) {
   const [paused, setPaused] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
@@ -90,7 +91,7 @@ function ReelItem({ item, isActive, height, muted, onToggleMute, onToggleLike, o
       />
 
       {/* Top bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { top: Math.max(18, topInset + 8) }]}>
         <Text style={styles.reelsBrand}>Reels</Text>
         <Pressable onPress={onToggleMute} style={styles.muteBtn}>
           <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
@@ -199,6 +200,7 @@ function ReelItem({ item, isActive, height, muted, onToggleMute, onToggleLike, o
 
 export default function ReelsScreen() {
   const { reels, toggleLike, toggleSave } = useApp();
+  const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [containerH, setContainerH] = useState(SCREEN_H);
@@ -217,13 +219,14 @@ export default function ReelsScreen() {
         item={item}
         isActive={index === activeIndex}
         height={containerH}
+        topInset={insets.top}
         muted={muted}
         onToggleMute={() => setMuted((m) => !m)}
         onToggleLike={() => toggleLike(item.id)}
         onToggleSave={() => toggleSave(item.id)}
       />
     ),
-    [activeIndex, containerH, muted, toggleLike, toggleSave]
+    [activeIndex, containerH, insets.top, muted, toggleLike, toggleSave]
   );
 
   return (
@@ -266,7 +269,7 @@ const styles = StyleSheet.create({
   },
   topShade: { position: 'absolute', left: 0, right: 0, top: 0, height: 120 },
   bottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 260 },
-  topBar: { position: 'absolute', top: 50, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg },
+  topBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg },
   reelsBrand: { color: '#fff', fontSize: 24, fontWeight: typography.heavy, letterSpacing: -1.1, fontFamily: typography.family },
   muteBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.42)' },
   sidebar: { position: 'absolute', right: 12, bottom: 160, gap: spacing.lg, alignItems: 'center' },

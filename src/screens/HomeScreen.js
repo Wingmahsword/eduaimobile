@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, FlatList, Image, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -59,7 +59,7 @@ function StoryCircle({ item, index }) {
   );
 }
 
-function CoursePost({ item, index, onPress }) {
+function CoursePost({ item, index, onPress, postHeight }) {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const heartSv = useSharedValue(1);
@@ -96,7 +96,7 @@ function CoursePost({ item, index, onPress }) {
       {/* Cover */}
       <ScalePressable onPress={onPress} scaleDown={0.985}>
         <LinearGradient colors={[grad[0] + '55', grad[1] + '66', 'rgba(0,0,0,0.3)']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.postCover}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.postCover, { height: postHeight }]}
         >
           <View style={styles.coverBadgeRow}>
             <View style={styles.levelBadge}><Text style={styles.levelBadgeText}>{item.level}</Text></View>
@@ -149,8 +149,13 @@ function CoursePost({ item, index, onPress }) {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const { courses, coins, reels } = useApp();
   const { profile, signOut } = useAuth();
+  const isCompact = width < 390;
+  const postHeight = Math.min(360, Math.max(260, width * 0.92));
+  const reelWidth = Math.round(Math.min(150, Math.max(112, width * 0.34)));
+  const reelHeight = Math.round(reelWidth * 1.62);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -159,10 +164,16 @@ export default function HomeScreen({ navigation }) {
         from={{ opacity: 0, translateY: -14 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'spring', damping: 18, stiffness: 240 }}
-        style={styles.header}
+        style={[styles.header, { paddingHorizontal: isCompact ? spacing.md : spacing.lg }]}
       >
-        <Text style={styles.logo}>EduAI</Text>
+        <Text style={[styles.logo, { fontSize: isCompact ? 24 : 28 }]}>EduAI</Text>
         <View style={styles.headerIcons}>
+          <ScalePressable onPress={() => navigation.navigate('DM')} scaleDown={0.86}>
+            <View style={styles.dmBtn}>
+              <Ionicons name="paper-plane-outline" size={20} color="#fff" />
+              <View style={styles.dmDot} />
+            </View>
+          </ScalePressable>
           <ScalePressable onPress={() => navigation.navigate('Playground')} scaleDown={0.86}>
             <Ionicons name="sparkles-outline" size={24} color="#fff" />
           </ScalePressable>
@@ -231,6 +242,7 @@ export default function HomeScreen({ navigation }) {
             key={item.id}
             item={item}
             index={index}
+            postHeight={postHeight}
             onPress={() => navigation.navigate('Courses')}
           />
         ))}
@@ -252,7 +264,7 @@ export default function HomeScreen({ navigation }) {
             contentContainerStyle={{ gap: 10, paddingHorizontal: spacing.lg }}
             renderItem={({ item }) => (
               <ScalePressable onPress={() => navigation.navigate('Reels')} scaleDown={0.93}>
-                <View style={styles.reelThumb}>
+                <View style={[styles.reelThumb, { width: reelWidth, height: reelHeight }]}> 
                   <Image
                     source={{ uri: `https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg` }}
                     style={StyleSheet.absoluteFill}
@@ -279,6 +291,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
   logo: { flex: 1, color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -1.3, fontFamily: typography.family },
   headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dmBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  dmDot: { position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EC4899' },
   coinsPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7 },
   coinsText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   avatarPill: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -308,7 +322,7 @@ const styles = StyleSheet.create({
   postAvatarText: { color: '#fff', fontWeight: '900', fontSize: 14 },
   postUser: { color: '#fff', fontWeight: '700', fontSize: 13 },
   postSub: { color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 1 },
-  postCover: { width: '100%', height: 340, justifyContent: 'space-between', padding: spacing.lg },
+  postCover: { width: '100%', justifyContent: 'space-between', padding: spacing.lg },
   coverBadgeRow: { flexDirection: 'row', gap: 8 },
   levelBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: 'rgba(0,0,0,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   levelBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
