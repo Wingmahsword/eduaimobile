@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from './src/context/AppContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { DMProvider } from './src/context/DMContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import AuthScreen from './src/screens/AuthScreen';
 import { colors } from './src/constants/theme';
@@ -63,10 +64,12 @@ function AppGate() {
 
   return (
     <AppProvider userId={session.user.id}>
-      <NavigationContainer theme={navTheme}>
-        <StatusBar style="light" />
-        <RootNavigator />
-      </NavigationContainer>
+      <DMProvider>
+        <NavigationContainer theme={navTheme}>
+          <StatusBar style="light" />
+          <RootNavigator />
+        </NavigationContainer>
+      </DMProvider>
     </AppProvider>
   );
 }

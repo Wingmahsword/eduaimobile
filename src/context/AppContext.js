@@ -1,8 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { COURSES, REELS, API_BASE, CMS_BASE } from '../constants/data';
+import { COURSES, REELS, GENERATED_REELS, API_BASE, CMS_BASE } from '../constants/data';
 import { supabase } from '../lib/supabase';
 
 const AppContext = createContext(null);
+
+function mergeReels(primary, generated = []) {
+  const byId = new Map();
+  [...primary, ...generated].forEach((r) => {
+    if (r?.id) byId.set(r.id, r);
+  });
+  return Array.from(byId.values());
+}
 
 export function AppProvider({ children, userId }) {
   const [enrolled, setEnrolled] = useState([]);
@@ -23,9 +31,12 @@ export function AppProvider({ children, userId }) {
         const res = await fetch(`${CMS_BASE}/api/reels`);
         if (!res.ok) throw new Error(`CMS ${res.status}`);
         const data = await res.json();
-        if (mounted && Array.isArray(data.reels) && data.reels.length) setCmsReels(data.reels);
+        if (mounted && Array.isArray(data.reels)) {
+          const merged = mergeReels(data.reels, GENERATED_REELS);
+          setCmsReels(merged.length ? merged : REELS);
+        }
       } catch (_) {
-        if (mounted) setCmsReels(REELS);
+        if (mounted) setCmsReels(mergeReels(REELS, GENERATED_REELS));
       }
     }
 

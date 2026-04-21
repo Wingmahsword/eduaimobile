@@ -4,14 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { spacing, radius } from '../constants/theme';
-
-const THREADS = [
-  { id: 'dm1', name: 'krish_ai', last: 'Bro check this ML roadmap reel', time: '2m', unread: 2 },
-  { id: 'dm2', name: 'anna.ml', last: 'Shared a CS229 note PDF', time: '8m', unread: 0 },
-  { id: 'dm3', name: 'micro_ai', last: 'Let\'s collab on your reel draft', time: '21m', unread: 1 },
-  { id: 'dm4', name: 'hf_user', last: 'Tokenizer bug fixed ✅', time: '1h', unread: 0 },
-  { id: 'dm5', name: 'su_dev', last: 'Drop your project link', time: '3h', unread: 0 },
-];
+import { useDM } from '../context/DMContext';
 
 function ThreadItem({ item, onPress }) {
   return (
@@ -37,6 +30,8 @@ function ThreadItem({ item, onPress }) {
 }
 
 export default function DMScreen({ navigation }) {
+  const { threads } = useDM();
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
@@ -44,7 +39,7 @@ export default function DMScreen({ navigation }) {
         <Ionicons name="create-outline" size={22} color="#fff" />
       </View>
       <FlatList
-        data={THREADS}
+        data={threads}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <ThreadItem item={item} onPress={() => navigation.navigate('DMChat', { thread: item })} />

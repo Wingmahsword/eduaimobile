@@ -1,16 +1,10 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { spacing, radius } from '../constants/theme';
-
-const DEMO_MESSAGES = [
-  { id: 'm1', fromMe: false, text: 'Yo! saw your latest AI reel 🔥' },
-  { id: 'm2', fromMe: true, text: 'Thanks! Working on part 2 now.' },
-  { id: 'm3', fromMe: false, text: 'Send it when done, I will repost.' },
-  { id: 'm4', fromMe: true, text: 'Deal 🤝' },
-];
+import { useDM } from '../context/DMContext';
 
 function Bubble({ item }) {
   return (
@@ -25,6 +19,19 @@ function Bubble({ item }) {
 export default function DMChatScreen({ navigation, route }) {
   const thread = route?.params?.thread;
   const name = thread?.name || 'chat';
+  const threadId = thread?.id || 'dm1';
+  const { getThreadMessages, sendMessage, markThreadRead } = useDM();
+  const [draft, setDraft] = useState('');
+  const messages = useMemo(() => getThreadMessages(threadId), [getThreadMessages, threadId]);
+
+  const onSend = () => {
+    sendMessage(threadId, draft);
+    setDraft('');
+  };
+
+  React.useEffect(() => {
+    markThreadRead(threadId);
+  }, [markThreadRead, threadId]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -43,7 +50,7 @@ export default function DMChatScreen({ navigation, route }) {
       </View>
 
       <FlatList
-        data={DEMO_MESSAGES}
+        data={messages}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <Bubble item={item} />}
         contentContainerStyle={styles.chatContent}
@@ -52,8 +59,17 @@ export default function DMChatScreen({ navigation, route }) {
       <View style={styles.composerWrap}>
         <View style={styles.composer}>
           <Ionicons name="happy-outline" size={20} color="rgba(255,255,255,0.6)" />
-          <TextInput placeholder="Message..." placeholderTextColor="rgba(255,255,255,0.4)" style={styles.input} />
-          <Ionicons name="mic-outline" size={20} color="rgba(255,255,255,0.6)" />
+          <TextInput
+            placeholder="Message..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            style={styles.input}
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={onSend}
+          />
+          <Pressable onPress={onSend} hitSlop={10}>
+            <Ionicons name="send" size={18} color="#fff" />
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>
