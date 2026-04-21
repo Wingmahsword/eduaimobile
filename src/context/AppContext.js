@@ -16,6 +16,7 @@ export function AppProvider({ children, userId }) {
 
   useEffect(() => {
     let mounted = true;
+    const canUseSupabase = !!supabase && !!userId && userId !== 'demo-user';
 
     async function loadRemoteData() {
       try {
@@ -29,7 +30,7 @@ export function AppProvider({ children, userId }) {
     }
 
     async function loadUserData() {
-      if (!userId) return;
+      if (!canUseSupabase) return;
       const [enrollRes, likeRes, saveRes, profileRes] = await Promise.all([
         supabase.from('enrollments').select('course_id').eq('user_id', userId),
         supabase.from('liked_reels').select('reel_id').eq('user_id', userId),
@@ -50,11 +51,12 @@ export function AppProvider({ children, userId }) {
   }, [userId]);
 
   const toggleLike = async (id) => {
+    const canUseSupabase = !!supabase && !!userId && userId !== 'demo-user';
     const next = likedReels.includes(id)
       ? likedReels.filter((x) => x !== id)
       : [...likedReels, id];
     setLikedReels(next);
-    if (userId) {
+    if (canUseSupabase) {
       if (likedReels.includes(id)) {
         await supabase.from('liked_reels').delete().eq('user_id', userId).eq('reel_id', id);
       } else {
@@ -64,11 +66,12 @@ export function AppProvider({ children, userId }) {
   };
 
   const toggleSave = async (id) => {
+    const canUseSupabase = !!supabase && !!userId && userId !== 'demo-user';
     const next = savedReels.includes(id)
       ? savedReels.filter((x) => x !== id)
       : [...savedReels, id];
     setSavedReels(next);
-    if (userId) {
+    if (canUseSupabase) {
       if (savedReels.includes(id)) {
         await supabase.from('saved_reels').delete().eq('user_id', userId).eq('reel_id', id);
       } else {
@@ -78,11 +81,12 @@ export function AppProvider({ children, userId }) {
   };
 
   const enrollCourse = async (id) => {
+    const canUseSupabase = !!supabase && !!userId && userId !== 'demo-user';
     if (enrolled.includes(id)) return;
     const newCoins = coins + 50;
     setEnrolled((p) => [...p, id]);
     setCoins(newCoins);
-    if (userId) {
+    if (canUseSupabase) {
       await Promise.all([
         supabase.from('enrollments').upsert({ user_id: userId, course_id: id }),
         supabase.from('profiles').update({ coins: newCoins }).eq('id', userId),

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { MotiView } from 'moti';
-import { useAuth } from '../context/AuthContext';
+import { DEMO_EMAIL, DEMO_PASSWORD, useAuth } from '../context/AuthContext';
 import { spacing, radius, typography } from '../constants/theme';
 
 function SpringButton({ onPress, loading, disabled, children, style }) {
@@ -56,7 +56,7 @@ function GlassInput({ icon, value, onChangeText, placeholder, secureTextEntry, k
 }
 
 export default function AuthScreen() {
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -125,13 +125,10 @@ export default function AuthScreen() {
       return;
     }
     if (!email.trim() || !password.trim()) { setError('Email and password are required.'); return; }
-    if (!isLogin && !displayName.trim()) { setError('Please enter your name.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
 
     setLoading(true);
-    const { error: err } = isLogin
-      ? await signIn({ email: email.trim(), password })
-      : await signUp({ email: email.trim(), password, displayName: displayName.trim() });
+    const { error: err } = await signIn({ email: email.trim(), password });
     setLoading(false);
 
     if (err) {
@@ -140,9 +137,6 @@ export default function AuthScreen() {
         setLockoutUntil(Date.now() + cooldownMs);
       }
       setError(friendlyError(err.message));
-    } else if (!isLogin) {
-      setSuccess('Account created! Check your email to confirm, then log in.');
-      setMode('login');
     }
   };
 
@@ -177,29 +171,10 @@ export default function AuthScreen() {
             <Text style={styles.logoSub}>Learn · Watch · Chat</Text>
           </MotiView>
 
-          {/* Mode toggle */}
-          <MotiView
-            from={{ opacity: 0, translateY: 16 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 16, delay: 60 }}
-            style={styles.toggleRow}
-          >
-            {['login', 'register'].map((m) => (
-              <Pressable key={m} onPress={() => switchMode(m)} style={styles.toggleBtn}>
-                <Text style={[styles.toggleText, mode === m && styles.toggleTextActive]}>
-                  {m === 'login' ? 'Log in' : 'Sign up'}
-                </Text>
-                {mode === m && (
-                  <MotiView
-                    from={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ type: 'spring', damping: 16, stiffness: 300 }}
-                    style={styles.toggleUnderline}
-                  />
-                )}
-              </Pressable>
-            ))}
-          </MotiView>
+          <View style={styles.demoHintBox}>
+            <Ionicons name="information-circle-outline" size={15} color="#38BDF8" />
+            <Text style={styles.demoHintText}>Demo login: {DEMO_EMAIL} / {DEMO_PASSWORD}</Text>
+          </View>
 
           {/* Form */}
           <MotiView
@@ -208,23 +183,6 @@ export default function AuthScreen() {
             transition={{ type: 'spring', damping: 16, delay: 100 }}
             style={styles.form}
           >
-            {!isLogin && (
-              <MotiView
-                from={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 56 }}
-                transition={{ type: 'spring', damping: 18, stiffness: 280 }}
-                style={{ overflow: 'hidden' }}
-              >
-                <GlassInput
-                  icon="person-outline"
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  placeholder="Your name"
-                  autoCapitalize="words"
-                />
-              </MotiView>
-            )}
-
             <GlassInput
               icon="mail-outline"
               value={email}
@@ -293,21 +251,6 @@ export default function AuthScreen() {
             )}
           </MotiView>
 
-          {/* Footer */}
-          <MotiView
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 400 }}
-            style={styles.footer}
-          >
-            <Text style={styles.footerText}>
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-            </Text>
-            <Pressable onPress={() => switchMode(isLogin ? 'register' : 'login')}>
-              <Text style={styles.footerLink}>{isLogin ? 'Sign up' : 'Log in'}</Text>
-            </Pressable>
-          </MotiView>
-
           <Text style={styles.termsText}>
             By continuing, you agree to EduAI's Terms of Service and Privacy Policy.
           </Text>
@@ -326,11 +269,8 @@ const styles = StyleSheet.create({
   logoText: { color: '#fff', fontSize: 34, fontWeight: '800', letterSpacing: -1.5, fontFamily: typography.family },
   logoSub: { color: 'rgba(255,255,255,0.4)', fontSize: 13, letterSpacing: 1 },
 
-  toggleRow: { flexDirection: 'row', gap: 32, justifyContent: 'center', marginBottom: 32 },
-  toggleBtn: { alignItems: 'center', paddingBottom: 8, gap: 6 },
-  toggleText: { color: 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700' },
-  toggleTextActive: { color: '#fff' },
-  toggleUnderline: { height: 2, width: '100%', borderRadius: 1, backgroundColor: '#fff' },
+  demoHintBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(56,189,248,0.12)', borderRadius: radius.md, padding: 12, borderWidth: 1, borderColor: 'rgba(56,189,248,0.32)', marginBottom: 22 },
+  demoHintText: { color: '#38BDF8', fontSize: 13, flex: 1 },
 
   form: { gap: 14 },
 
@@ -350,10 +290,6 @@ const styles = StyleSheet.create({
   ctaText: { color: '#000', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
 
   forgotText: { color: 'rgba(255,255,255,0.3)', fontSize: 12, textAlign: 'center', marginTop: 4 },
-
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 32 },
-  footerText: { color: 'rgba(255,255,255,0.45)', fontSize: 13 },
-  footerLink: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   termsText: { color: 'rgba(255,255,255,0.2)', fontSize: 11, textAlign: 'center', marginTop: 24, lineHeight: 16 },
 });

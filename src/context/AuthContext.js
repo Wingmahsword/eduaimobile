@@ -1,68 +1,49 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+
+export const DEMO_EMAIL = 'demo@eduai.app';
+export const DEMO_PASSWORD = 'demo123';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState({ id: 'demo-user', display_name: 'Demo User', coins: 100 });
 
   useEffect(() => {
-    if (!supabase) {
-      setSession(null);
-      return;
-    }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session ?? null);
-      if (session) fetchProfile(session.user.id);
-    }).catch(() => setSession(null));
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session ?? null);
-      if (session) fetchProfile(session.user.id);
-      else setProfile(null);
-    });
-
-    return () => subscription.unsubscribe();
+    setSession(null);
+    setProfile({ id: 'demo-user', display_name: 'Demo User', coins: 100 });
+    return undefined;
   }, []);
 
-  async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (data) setProfile(data);
+  async function fetchProfile() {
+    return { id: 'demo-user', display_name: 'Demo User', coins: 100 };
   }
 
-  async function signUp({ email, password, displayName }) {
-    if (!supabase) return { error: new Error('Supabase not configured') };
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { display_name: displayName } },
-    });
-    return { error };
+  async function signUp() {
+    return { error: new Error('Demo mode is enabled. Please log in with demo credentials.') };
   }
 
   async function signIn({ email, password }) {
-    if (!supabase) return { error: new Error('Supabase not configured') };
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    const validEmail = email.trim().toLowerCase() === DEMO_EMAIL;
+    const validPassword = password === DEMO_PASSWORD;
+
+    if (!validEmail || !validPassword) {
+      return { error: new Error('Invalid demo credentials. Use demo@eduai.app / demo123') };
+    }
+
+    setProfile({ id: 'demo-user', display_name: 'Demo User', coins: 100 });
+    setSession({
+      access_token: 'demo-token',
+      user: { id: 'demo-user', email: DEMO_EMAIL },
+    });
+    return { error: null };
   }
 
   async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    setSession(null);
   }
 
   async function updateCoins(newCoins) {
-    if (!supabase || !session) return;
-    await supabase
-      .from('profiles')
-      .update({ coins: newCoins, updated_at: new Date().toISOString() })
-      .eq('id', session.user.id);
     setProfile((p) => p ? { ...p, coins: newCoins } : p);
   }
 
