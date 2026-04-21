@@ -9,6 +9,7 @@ import GlassCard from '../components/GlassCard';
 import ScalePressable from '../components/ScalePressable';
 import { colors, spacing, radius, typography } from '../constants/theme';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 const STORIES = [
   { key: 'you', label: 'Your Story', initials: '+', gradient: null },
@@ -149,6 +150,7 @@ function CoursePost({ item, index, onPress }) {
 
 export default function HomeScreen({ navigation }) {
   const { courses, coins, reels } = useApp();
+  const { profile, signOut } = useAuth();
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -161,17 +163,21 @@ export default function HomeScreen({ navigation }) {
       >
         <Text style={styles.logo}>EduAI</Text>
         <View style={styles.headerIcons}>
-          <ScalePressable onPress={() => navigation.navigate('Courses')} scaleDown={0.86}>
-            <Ionicons name="search-outline" size={26} color="#fff" />
-          </ScalePressable>
           <ScalePressable onPress={() => navigation.navigate('Playground')} scaleDown={0.86}>
-            <Ionicons name="sparkles-outline" size={26} color="#fff" />
+            <Ionicons name="sparkles-outline" size={24} color="#fff" />
           </ScalePressable>
           <ScalePressable scaleDown={0.86}>
             <GlassCard radiusSize={radius.pill} style={styles.coinsPill}>
               <Ionicons name="diamond" size={13} color={colors.accentSerif} />
               <Text style={styles.coinsText}>{coins}</Text>
             </GlassCard>
+          </ScalePressable>
+          <ScalePressable onPress={signOut} scaleDown={0.86}>
+            <LinearGradient colors={['#06B6D4','#8B5CF6']} style={styles.avatarPill}>
+              <Text style={styles.avatarText}>
+                {profile?.display_name?.[0]?.toUpperCase() ?? '?'}
+              </Text>
+            </LinearGradient>
           </ScalePressable>
         </View>
       </MotiView>
@@ -272,9 +278,11 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
   logo: { flex: 1, color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -1.3, fontFamily: typography.family },
-  headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  headerIcons: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coinsPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7 },
   coinsText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  avatarPill: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontWeight: '900', fontSize: 14 },
 
   storiesList: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
   storiesContainer: { paddingHorizontal: spacing.md, paddingVertical: 14, gap: 16 },

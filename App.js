@@ -1,12 +1,14 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from './src/context/AppContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import RootTabs from './src/navigation/RootTabs';
+import AuthScreen from './src/screens/AuthScreen';
 import { colors } from './src/constants/theme';
 
 class ErrorBoundary extends React.Component {
@@ -44,17 +46,39 @@ const navTheme = {
   },
 };
 
+function AppGate() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#06B6D4" size="large" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <AppProvider userId={session.user.id}>
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style="light" />
+        <RootTabs />
+      </NavigationContainer>
+    </AppProvider>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
         <SafeAreaProvider>
-          <AppProvider>
-            <NavigationContainer theme={navTheme}>
-              <StatusBar style="light" />
-              <RootTabs />
-            </NavigationContainer>
-          </AppProvider>
+          <AuthProvider>
+            <AppGate />
+          </AuthProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
