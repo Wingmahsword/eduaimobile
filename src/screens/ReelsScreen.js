@@ -1,5 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Dimensions, Pressable, Image, Platform } from 'react-native';
+import {
+  View, Text, StyleSheet, FlatList, Dimensions,
+  Pressable, Image, Platform,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,148 +11,225 @@ import { MotiView, AnimatePresence } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import HlsVideoPlayer from '../components/HlsVideoPlayer';
-import { colors, spacing, radius, typography } from '../constants/theme';
+import { colors, spacing, radius } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
+const GLASS_BORDER = 'rgba(255,255,255,0.16)';
+const IS_WEB = Platform.OS === 'web';
 
-const GLASS_BG = 'rgba(255,255,255,0.08)';
-const GLASS_BORDER = 'rgba(255,255,255,0.18)';
-
-function GlassView({ style, intensity = 18, children }) {
-  if (Platform.OS === 'web') {
+/* ─── Glass primitive ─────────────────────────────────────────────── */
+function GlassView({ style, intensity = 22, children }) {
+  if (IS_WEB) {
     return (
-      <View style={[
-        {
-          backgroundColor: 'rgba(12,12,22,0.52)',
-          backdropFilter: 'blur(22px)',
-          WebkitBackdropFilter: 'blur(22px)',
-          borderColor: GLASS_BORDER,
-          borderWidth: 1,
-        },
-        style,
-      ]}>
+      <View
+        style={[
+          {
+            backgroundColor: 'rgba(10,10,20,0.54)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            borderColor: GLASS_BORDER,
+            borderWidth: 1,
+          },
+          style,
+        ]}
+      >
         {children}
       </View>
     );
   }
   return (
-    <BlurView intensity={intensity} tint="dark" style={[{ borderColor: GLASS_BORDER, borderWidth: 1, overflow: 'hidden' }, style]}>
+    <BlurView
+      intensity={intensity}
+      tint="dark"
+      style={[{ borderColor: GLASS_BORDER, borderWidth: 1, overflow: 'hidden' }, style]}
+    >
       {children}
     </BlurView>
   );
 }
 
-function ActionBtn({ icon, label, onPress, active, activeColor = '#FF3B6B', size = 27 }) {
-  return (
-    <Pressable onPress={onPress} style={styles.actionBtn}>
-      <MotiView
-        animate={{ scale: active ? 1.25 : 1 }}
-        transition={{ type: 'spring', damping: 10, stiffness: 220 }}
-        style={active ? { shadowColor: activeColor, shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } } : null}
+/* ─── Platform-aware video ─────────────────────────────────────────── */
+function VideoLayer({ youtubeId, hlsUrl, isActive, paused, muted, height }) {
+  if (!isActive) return null;
+
+  /* Web: raw <iframe> with autoplay+mute; overscan hides YouTube chrome */
+  if (IS_WEB) {
+    const src =
+      `https://www.youtube.com/embed/${youtubeId}` +
+      `?autoplay=1&mute=1&controls=0&showinfo=0&rel=0` +
+      `&modestbranding=1&loop=1&playlist=${youtubeId}` +
+      `&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0`;
+    return (
+      <div
+        style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          overflow: 'hidden',
+        }}
       >
-        <Ionicons
-          name={icon}
-          size={size}
-          color={active ? activeColor : 'rgba(255,255,255,0.9)'}
+        <iframe
+          key={youtubeId}
+          src={src}
+          style={{
+            position: 'absolute',
+            top: '-80px',
+            left: '-2px',
+            width: 'calc(100% + 4px)',
+            height: 'calc(100% + 160px)',
+            border: 'none',
+            pointerEvents: 'none',
+          }}
+          allow="autoplay; encrypted-media; fullscreen"
+          title="reel"
         />
-      </MotiView>
-      {!!label && <Text style={[styles.actionLabel, active && { color: activeColor }]}>{label}</Text>}
+      </div>
+    );
+  }
+
+  /* Native: HLS preferred, YouTube fallback */
+  if (hlsUrl) {
+    return (
+      <HlsVideoPlayer
+        hlsUrl={hlsUrl}
+        muted={muted}
+        shouldPlay={!paused}
+        style={{ width: SCREEN_W, height }}
+      />
+    );
+  }
+  return (
+    <YoutubePlayer
+      height={height}
+      width={SCREEN_W}
+      videoId={youtubeId}
+      play={!paused}
+      mute={muted}
+      webViewProps={{
+        allowsInlineMediaPlayback: true,
+        mediaPlaybackRequiresUserAction: false,
+      }}
+      initialPlayerParams={{
+        controls: false,
+        modestbranding: true,
+        loop: true,
+        preventFullScreen: true,
+        showClosedCaptions: false,
+        rel: false,
+      }}
+    />
+  );
+}
+
+/* ─── Single action button ─────────────────────────────────────────── */
+function ActionBtn({ icon, count, onPress, active = false, activeColor = '#FF3B6B' }) {
+  return (
+    <Pressable onPress={onPress} style={S.actionBtn}>
+      <GlassView style={S.actionCircle} intensity={24}>
+        <MotiView
+          animate={{ scale: active ? 1.22 : 1 }}
+          transition={{ type: 'spring', damping: 9, stiffness: 200 }}
+        >
+          <Ionicons
+            name={icon}
+            size={23}
+            color={active ? activeColor : '#fff'}
+          />
+        </MotiView>
+      </GlassView>
+      {count != null && (
+        <Text style={[S.actionCount, active && { color: activeColor }]}>
+          {count}
+        </Text>
+      )}
     </Pressable>
   );
 }
 
-function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onToggleLike, onToggleSave, activeIndexForItem }) {
+/* ─── Reel item ────────────────────────────────────────────────────── */
+function ReelItem({
+  item, isActive, index, height, topInset, bottomInset,
+  muted, onToggleMute, onToggleLike, onToggleSave,
+}) {
   const [paused, setPaused] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
-  const [showPauseIcon, setShowPauseIcon] = useState(false);
-  const lastTapRef = useRef(0);
+  const [showPause, setShowPause] = useState(false);
+  const lastTap = useRef(0);
 
-  const handlePress = () => {
+  const handleTap = () => {
     const now = Date.now();
-    if (now - lastTapRef.current < 280) {
+    if (now - lastTap.current < 270) {
       if (!item.liked) onToggleLike();
       setShowHeart(true);
-      setTimeout(() => setShowHeart(false), 900);
+      setTimeout(() => setShowHeart(false), 850);
     } else {
-      setPaused((p) => !p);
-      setShowPauseIcon(true);
-      setTimeout(() => setShowPauseIcon(false), 700);
+      const next = !paused;
+      setPaused(next);
+      if (next) {
+        setShowPause(true);
+        setTimeout(() => setShowPause(false), 700);
+      }
     }
-    lastTapRef.current = now;
+    lastTap.current = now;
   };
 
+  const poster = item.posterUrl
+    || `https://i.ytimg.com/vi/${item.youtubeId}/maxresdefault.jpg`;
+
+  const sidebarBottom = bottomInset + 130;
+  const infoBottom   = bottomInset + 12;
+
   return (
-    <Pressable onPress={handlePress} style={[styles.reel, { height, width: SCREEN_W }]}>
+    <Pressable onPress={handleTap} style={[S.reel, { height, width: SCREEN_W }]}>
 
-      {/* Blurred ambient background */}
-      <Image
-        source={{ uri: item.posterUrl || `https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg` }}
-        style={StyleSheet.absoluteFill}
-        blurRadius={28}
-        resizeMode="cover"
-      />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.38)' }]} />
+      {/* ── Ambient blurred bg ── */}
+      <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} blurRadius={30} resizeMode="cover" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.42)' }]} />
 
-      {/* Video layer */}
-      <View style={styles.videoCrop}>
-        {isActive && (
-          <View style={[styles.videoInner, { width: height * (16 / 9), height }]}>
-            {item.hlsUrl && Platform.OS !== 'web' ? (
-              <HlsVideoPlayer
-                hlsUrl={item.hlsUrl}
-                muted={muted}
-                shouldPlay={!paused && isActive}
-                style={styles.hlsVideo}
-              />
-            ) : (
-              <YoutubePlayer
-                height={height}
-                width={height * (16 / 9)}
-                videoId={item.youtubeId}
-                play={!paused}
-                mute={muted}
-                webViewProps={{ allowsInlineMediaPlayback: true, mediaPlaybackRequiresUserAction: false }}
-                initialPlayerParams={{ controls: false, modestbranding: true, loop: true, playerLang: 'en', preventFullScreen: true, showClosedCaptions: false, rel: false }}
-              />
-            )}
-          </View>
-        )}
+      {/* ── Video (full viewport) ── */}
+      <View style={StyleSheet.absoluteFill}>
+        <VideoLayer
+          youtubeId={item.youtubeId}
+          hlsUrl={item.hlsUrl}
+          isActive={isActive}
+          paused={paused}
+          muted={muted}
+          height={height}
+        />
       </View>
 
-      {/* Cinematic top vignette */}
+      {/* ── Top gradient ── */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.72)', 'transparent']}
-        style={styles.topShade}
+        colors={['rgba(0,0,0,0.78)', 'rgba(0,0,0,0.3)', 'transparent']}
+        locations={[0, 0.35, 1]}
+        style={S.topShade}
       />
 
-      {/* Cinematic bottom vignette — deeper */}
+      {/* ── Bottom gradient ── */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.92)']}
-        locations={[0, 0.55, 1]}
-        style={styles.bottomShade}
+        colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.94)']}
+        locations={[0, 0.45, 1]}
+        style={S.bottomShade}
       />
 
       {/* ── TOP BAR ── */}
-      <View style={[styles.topBar, { top: Math.max(16, topInset + 6) }]}>
-        <GlassView style={styles.brandPill} intensity={24}>
+      <View style={[S.topBar, { paddingTop: Math.max(14, topInset + 8) }]}>
+        <GlassView style={S.brandPill} intensity={26}>
           <LinearGradient
             colors={['#FF3B6B', '#8B5CF6']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={styles.brandAccentLine}
+            style={S.brandStripe}
           />
-          <Text style={styles.reelsBrand}>Reels</Text>
+          <Text style={S.brandText}>Reels</Text>
         </GlassView>
-
-        <View style={styles.topRight}>
-          <GlassView style={styles.counterChip} intensity={22}>
-            <Text style={styles.counterText}>{activeIndexForItem + 1}</Text>
+        <View style={S.topRight}>
+          <GlassView style={S.numChip} intensity={22}>
+            <Text style={S.numText}>{index + 1}</Text>
           </GlassView>
           <Pressable onPress={onToggleMute}>
-            <GlassView style={styles.muteChip} intensity={22}>
+            <GlassView style={S.iconChip} intensity={22}>
               <Ionicons
                 name={muted ? 'volume-mute' : 'volume-high'}
-                size={15}
+                size={14}
                 color="rgba(255,255,255,0.9)"
               />
             </GlassView>
@@ -157,133 +237,133 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
         </View>
       </View>
 
-      {/* ── RIGHT SIDEBAR — glass pill container ── */}
-      <View style={styles.sidebar}>
-        <GlassView style={styles.sidebarPill} intensity={20}>
-          <ActionBtn
-            icon={item.liked ? 'heart' : 'heart-outline'}
-            label={item.likes}
-            onPress={onToggleLike}
-            active={item.liked}
-            activeColor="#FF3B6B"
-          />
-          <View style={styles.sidebarDivider} />
-          <ActionBtn
-            icon="chatbubble-ellipses-outline"
-            label={item.comments}
-          />
-          <View style={styles.sidebarDivider} />
-          <ActionBtn
-            icon={item.saved ? 'bookmark' : 'bookmark-outline'}
-            label="Save"
-            onPress={onToggleSave}
-            active={item.saved}
-            activeColor="#06B6D4"
-          />
-          <View style={styles.sidebarDivider} />
-          <ActionBtn
-            icon="paper-plane-outline"
-            label="Share"
-          />
-        </GlassView>
-
-        {/* Rotating music disc */}
+      {/* ── RIGHT ACTION COLUMN ── */}
+      <View style={[S.actionCol, { bottom: sidebarBottom }]}>
+        <ActionBtn
+          icon={item.liked ? 'heart' : 'heart-outline'}
+          count={item.likes}
+          onPress={onToggleLike}
+          active={item.liked}
+          activeColor="#FF3B6B"
+        />
+        <ActionBtn
+          icon="chatbubble-ellipses-outline"
+          count={item.comments}
+        />
+        <ActionBtn
+          icon={item.saved ? 'bookmark' : 'bookmark-outline'}
+          count="Save"
+          onPress={onToggleSave}
+          active={item.saved}
+          activeColor="#06B6D4"
+        />
+        <ActionBtn
+          icon="paper-plane-outline"
+          count="Share"
+        />
+        {/* Music disc */}
         <MotiView
           from={{ rotate: '0deg' }}
           animate={{ rotate: '360deg' }}
-          transition={{ type: 'timing', duration: 7000, loop: true }}
-          style={styles.discWrap}
+          transition={{ type: 'timing', duration: 8000, loop: true }}
+          style={{ marginTop: 6 }}
         >
-          <GlassView style={styles.disc} intensity={24}>
+          <GlassView style={S.disc} intensity={26}>
             <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={StyleSheet.absoluteFill} />
-            <Ionicons name="musical-notes" size={14} color="#fff" />
+            <Ionicons name="musical-notes" size={13} color="#fff" />
           </GlassView>
         </MotiView>
       </View>
 
-      {/* ── BOTTOM INFO — glass card ── */}
-      <View style={styles.infoWrap}>
-        <GlassView style={styles.infoCard} intensity={28}>
-
-          {/* Creator row */}
-          <View style={styles.creatorRow}>
-            <View style={styles.avatarWrap}>
-              <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={styles.avatarRing}>
-                <View style={styles.avatarInner}>
-                  <Text style={styles.avatarText}>{item.avatar}</Text>
-                </View>
-              </LinearGradient>
-              <View style={styles.avatarOnline} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.creatorName}>{item.creator}</Text>
-              <Text style={styles.creatorHandle}>{item.handle}</Text>
-            </View>
-            <LinearGradient colors={['#FF3B6B', '#8B5CF6']} start={{x:0,y:0}} end={{x:1,y:0}} style={styles.followPillGrad}>
-              <Text style={styles.followText}>Follow</Text>
+      {/* ── BOTTOM INFO ── */}
+      <View style={[S.infoArea, { bottom: infoBottom }]}>
+        {/* Creator row */}
+        <View style={S.creatorRow}>
+          <View style={S.avatarWrap}>
+            <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={S.avatarRing}>
+              <View style={S.avatarInner}>
+                <Text style={S.avatarText}>{item.avatar}</Text>
+              </View>
             </LinearGradient>
+            <View style={S.onlineDot} />
           </View>
+          <View style={{ flex: 1 }}>
+            <Text style={S.creatorName}>{item.creator}</Text>
+            <Text style={S.creatorHandle}>{item.handle}</Text>
+          </View>
+          <LinearGradient
+            colors={['#FF3B6B', '#8B5CF6']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={S.followBtn}
+          >
+            <Text style={S.followText}>Follow</Text>
+          </LinearGradient>
+        </View>
 
-          {/* Title */}
-          <Text style={styles.reelTitle} numberOfLines={2}>{item.title}</Text>
+        {/* Title */}
+        <Text style={S.title} numberOfLines={2}>{item.title}</Text>
 
-          {/* Tags */}
-          {item.tags?.length > 0 && (
-            <View style={styles.tagRow}>
-              {item.tags.slice(0, 3).map((t) => (
-                <GlassView key={t} style={styles.tagChip} intensity={10}>
-                  <Text style={styles.tagText}>#{t}</Text>
-                </GlassView>
-              ))}
-            </View>
-          )}
-        </GlassView>
+        {/* Tags */}
+        {item.tags?.length > 0 && (
+          <View style={S.tagRow}>
+            {item.tags.slice(0, 3).map((t) => (
+              <GlassView key={t} style={S.tagChip} intensity={10}>
+                <Text style={S.tagText}>#{t}</Text>
+              </GlassView>
+            ))}
+          </View>
+        )}
+
+        {/* Music ticker */}
+        <View style={S.musicRow}>
+          <Ionicons name="musical-note" size={11} color="rgba(255,255,255,0.55)" />
+          <Text style={S.musicText} numberOfLines={1}>
+            Original AI Sound · {item.creator}
+          </Text>
+        </View>
       </View>
 
       {/* ── PROGRESS BAR ── */}
-      <LinearGradient
-        colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.06)']}
-        style={styles.progressTrack}
-      >
+      <View style={S.progressTrack}>
         {isActive && !paused && (
           <MotiView
             from={{ width: '0%' }}
             animate={{ width: '100%' }}
-            transition={{ type: 'timing', duration: 14000, loop: true }}
-            style={styles.progressFill}
+            transition={{ type: 'timing', duration: 15000, loop: true }}
+            style={S.progressFill}
           />
         )}
-      </LinearGradient>
+      </View>
 
-      {/* ── DOUBLE-TAP HEART BURST ── */}
+      {/* ── DOUBLE-TAP HEART ── */}
       <AnimatePresence>
         {showHeart && (
           <MotiView
-            from={{ opacity: 0, scale: 0.2 }}
-            animate={{ opacity: 1, scale: 1.3 }}
-            exit={{ opacity: 0, scale: 1.9 }}
-            transition={{ type: 'spring', damping: 14 }}
-            style={styles.heartOverlay}
+            from={{ opacity: 0, scale: 0.3 }}
+            animate={{ opacity: 1, scale: 1.4 }}
+            exit={{ opacity: 0, scale: 2.2 }}
+            transition={{ type: 'spring', damping: 11 }}
+            style={S.heartOverlay}
             pointerEvents="none"
           >
-            <Ionicons name="heart" size={160} color="#FF3B6B" />
+            <Ionicons name="heart" size={140} color="#FF3B6B" />
           </MotiView>
         )}
       </AnimatePresence>
 
-      {/* ── PAUSE ICON ── */}
+      {/* ── PAUSE INDICATOR ── */}
       <AnimatePresence>
-        {showPauseIcon && paused && (
+        {showPause && paused && (
           <MotiView
-            from={{ opacity: 0, scale: 0.5 }}
+            from={{ opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.5 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={styles.pauseOverlay}
+            exit={{ opacity: 0, scale: 1.4 }}
+            transition={{ type: 'timing', duration: 240 }}
+            style={S.pauseOverlay}
             pointerEvents="none"
           >
-            <GlassView style={styles.pausePill} intensity={30}>
-              <Ionicons name="play" size={40} color="#fff" />
+            <GlassView style={S.pauseCircle} intensity={32}>
+              <Ionicons name="play" size={38} color="#fff" />
             </GlassView>
           </MotiView>
         )}
@@ -293,6 +373,7 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
   );
 }
 
+/* ─── Screen ───────────────────────────────────────────────────────── */
 export default function ReelsScreen() {
   const { reels, toggleLike, toggleSave } = useApp();
   const insets = useSafeAreaInsets();
@@ -301,33 +382,35 @@ export default function ReelsScreen() {
   const [containerH, setContainerH] = useState(SCREEN_H);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
-    if (viewableItems?.length > 0) {
-      setActiveIndex(viewableItems[0].index ?? 0);
-    }
+    if (viewableItems?.length > 0) setActiveIndex(viewableItems[0].index ?? 0);
   }).current;
 
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 70 }).current;
+  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 65 }).current;
 
   const renderItem = useCallback(
     ({ item, index }) => (
       <ReelItem
         item={item}
         isActive={index === activeIndex}
-        activeIndexForItem={index}
+        index={index}
         height={containerH}
         topInset={insets.top}
+        bottomInset={insets.bottom}
         muted={muted}
         onToggleMute={() => setMuted((m) => !m)}
         onToggleLike={() => toggleLike(item.id)}
         onToggleSave={() => toggleSave(item.id)}
       />
     ),
-    [activeIndex, containerH, insets.top, muted, toggleLike, toggleSave]
+    [activeIndex, containerH, insets, muted, toggleLike, toggleSave],
   );
 
   return (
-    <View style={styles.root} onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}>
-      <StatusBar style="light" />
+    <View
+      style={S.root}
+      onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}
+    >
+      <StatusBar style="light" hidden />
       <FlatList
         data={reels}
         keyExtractor={(r) => r.id}
@@ -350,120 +433,108 @@ export default function ReelsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
-  reel: { backgroundColor: '#000', overflow: 'hidden' },
+/* ─── Styles ───────────────────────────────────────────────────────── */
+const S = StyleSheet.create({
+  root:        { flex: 1, backgroundColor: '#000' },
+  reel:        { backgroundColor: '#000', overflow: 'hidden' },
 
-  videoCrop: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  videoInner: { justifyContent: 'center', alignItems: 'center' },
-  hlsVideo: { width: '100%', height: '100%' },
-
-  topShade: { position: 'absolute', left: 0, right: 0, top: 0, height: 160 },
-  bottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 320 },
+  topShade:    { position: 'absolute', left: 0, right: 0, top: 0, height: 180 },
+  bottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 360 },
 
   /* Top bar */
   topBar: {
-    position: 'absolute', left: 0, right: 0,
+    position: 'absolute', left: 0, right: 0, top: 0,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 16, paddingBottom: 8,
   },
-  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
+    borderRadius: 50, overflow: 'hidden', gap: 4,
   },
-  brandAccentLine: {
+  brandStripe: {
     position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
-    borderTopLeftRadius: radius.pill, borderBottomLeftRadius: radius.pill,
+    borderTopLeftRadius: 50, borderBottomLeftRadius: 50,
   },
-  reelsBrand: {
-    color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: -0.6,
-    marginLeft: 6,
+  brandText: {
+    color: '#fff', fontSize: 16, fontWeight: '900',
+    letterSpacing: -0.5, marginLeft: 8,
   },
-  counterChip: {
+  topRight:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  numChip: {
     paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: radius.pill, minWidth: 34,
-    alignItems: 'center',
+    borderRadius: 50, minWidth: 30, alignItems: 'center',
   },
-  counterText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700' },
-  muteChip: {
-    width: 34, height: 34, borderRadius: 17,
+  numText:   { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: '700' },
+  iconChip: {
+    width: 32, height: 32, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center',
   },
 
-  /* Sidebar */
-  sidebar: {
-    position: 'absolute', right: 12, bottom: 180,
-    alignItems: 'center', gap: 14,
+  /* Action column */
+  actionCol: {
+    position: 'absolute', right: 10,
+    alignItems: 'center', gap: 10,
   },
-  sidebarPill: {
-    borderRadius: radius.xxl,
-    paddingVertical: 8, paddingHorizontal: 2,
-    alignItems: 'center', gap: 0,
+  actionBtn:    { alignItems: 'center', gap: 4 },
+  actionCircle: {
+    width: 50, height: 50, borderRadius: 25,
+    justifyContent: 'center', alignItems: 'center',
     overflow: 'hidden',
   },
-  actionBtn: {
-    alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 3,
+  actionCount: {
+    color: 'rgba(255,255,255,0.85)', fontSize: 10,
+    fontWeight: '800', textAlign: 'center',
   },
-  actionLabel: { color: 'rgba(255,255,255,0.82)', fontSize: 10, fontWeight: '700' },
-  sidebarDivider: {
-    width: '70%', height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  discWrap: { marginTop: 4 },
   disc: {
-    width: 42, height: 42, borderRadius: 21,
+    width: 46, height: 46, borderRadius: 23,
     justifyContent: 'center', alignItems: 'center',
     overflow: 'hidden',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
   },
 
-  /* Bottom info card */
-  infoWrap: {
-    position: 'absolute', left: spacing.md, right: 72, bottom: 60,
-  },
-  infoCard: {
-    borderRadius: radius.xxl,
-    paddingHorizontal: 14, paddingVertical: 13,
-    gap: 9,
-    overflow: 'hidden',
+  /* Info area */
+  infoArea: {
+    position: 'absolute', left: 14, right: 76,
+    gap: 8,
   },
   creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarWrap: { position: 'relative' },
   avatarRing: { padding: 2.5, borderRadius: 26 },
   avatarInner: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarOnline: {
+  onlineDot: {
     position: 'absolute', bottom: 1, right: 1,
-    width: 10, height: 10, borderRadius: 5,
-    backgroundColor: '#00FF41',
-    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.6)',
+    width: 11, height: 11, borderRadius: 6,
+    backgroundColor: '#22C55E',
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.7)',
   },
-  avatarText: { color: '#fff', fontWeight: '900', fontSize: 13 },
-  creatorName: { color: '#fff', fontWeight: '800', fontSize: 13, letterSpacing: -0.3 },
-  creatorHandle: { color: 'rgba(255,255,255,0.45)', fontSize: 11 },
-  followPillGrad: {
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: radius.pill,
-    alignItems: 'center', justifyContent: 'center',
+  avatarText:     { color: '#fff', fontWeight: '900', fontSize: 13 },
+  creatorName:    { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: -0.3 },
+  creatorHandle:  { color: 'rgba(255,255,255,0.45)', fontSize: 11 },
+  followBtn: {
+    paddingHorizontal: 16, paddingVertical: 7,
+    borderRadius: 50, alignItems: 'center', justifyContent: 'center',
   },
-  followText: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
+  followText: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.2 },
 
-  reelTitle: {
-    color: '#fff', fontSize: 13.5, lineHeight: 19,
+  title: {
+    color: '#fff', fontSize: 14, lineHeight: 20,
     fontWeight: '700', letterSpacing: -0.2,
   },
 
   tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tagChip: {
     paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: radius.pill,
+    borderRadius: 50, overflow: 'hidden',
   },
   tagText: { color: 'rgba(255,255,255,0.75)', fontSize: 10.5, fontWeight: '700' },
+
+  musicRow:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  musicText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, flex: 1 },
 
   /* Progress */
   progressTrack: {
@@ -472,18 +543,24 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
+    backgroundColor: '#FF3B6B',
+    shadowColor: '#FF3B6B',
+    shadowOpacity: 0.9, shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
   },
 
   /* Overlays */
-  heartOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
-  pauseOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
-  pausePill: {
-    width: 80, height: 80, borderRadius: 40,
+  heartOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center', alignItems: 'center',
+  },
+  pauseOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  pauseCircle: {
+    width: 82, height: 82, borderRadius: 41,
+    justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden',
   },
 });
