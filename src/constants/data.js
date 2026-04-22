@@ -93,7 +93,6 @@ export const MODELS = [
 ];
 
 export const API_BASE = 'https://aipramgram.vercel.app';
-// CMS is hosted on Render for production.
-// Override in env if your Render URL is different.
+// CMS API is the Vercel serverless function at /api/reels on the same deployment.
 export const CMS_BASE = process.env.EXPO_PUBLIC_CMS_BASE_URL
-  || 'https://eduai-cms-api.onrender.com';
+  || 'https://eduai-mobile.vercel.app';

@@ -19,7 +19,16 @@ const GLASS_BORDER = 'rgba(255,255,255,0.18)';
 function GlassView({ style, intensity = 18, children }) {
   if (Platform.OS === 'web') {
     return (
-      <View style={[{ backgroundColor: 'rgba(20,20,35,0.55)', borderColor: GLASS_BORDER, borderWidth: 1 }, style]}>
+      <View style={[
+        {
+          backgroundColor: 'rgba(12,12,22,0.52)',
+          backdropFilter: 'blur(22px)',
+          WebkitBackdropFilter: 'blur(22px)',
+          borderColor: GLASS_BORDER,
+          borderWidth: 1,
+        },
+        style,
+      ]}>
         {children}
       </View>
     );
@@ -31,25 +40,26 @@ function GlassView({ style, intensity = 18, children }) {
   );
 }
 
-function ActionBtn({ icon, label, onPress, active, activeColor = '#FF3B6B', size = 26 }) {
+function ActionBtn({ icon, label, onPress, active, activeColor = '#FF3B6B', size = 27 }) {
   return (
     <Pressable onPress={onPress} style={styles.actionBtn}>
       <MotiView
-        animate={{ scale: active ? 1.2 : 1 }}
-        transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+        animate={{ scale: active ? 1.25 : 1 }}
+        transition={{ type: 'spring', damping: 10, stiffness: 220 }}
+        style={active ? { shadowColor: activeColor, shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } } : null}
       >
         <Ionicons
           name={icon}
           size={size}
-          color={active ? activeColor : 'rgba(255,255,255,0.92)'}
+          color={active ? activeColor : 'rgba(255,255,255,0.9)'}
         />
       </MotiView>
-      {!!label && <Text style={styles.actionLabel}>{label}</Text>}
+      {!!label && <Text style={[styles.actionLabel, active && { color: activeColor }]}>{label}</Text>}
     </Pressable>
   );
 }
 
-function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onToggleLike, onToggleSave }) {
+function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onToggleLike, onToggleSave, activeIndexForItem }) {
   const [paused, setPaused] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
   const [showPauseIcon, setShowPauseIcon] = useState(false);
@@ -120,9 +130,9 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
         style={styles.bottomShade}
       />
 
-      {/* ── TOP BAR ── glass pill */}
+      {/* ── TOP BAR ── */}
       <View style={[styles.topBar, { top: Math.max(16, topInset + 6) }]}>
-        <GlassView style={styles.brandPill} intensity={22}>
+        <GlassView style={styles.brandPill} intensity={24}>
           <LinearGradient
             colors={['#FF3B6B', '#8B5CF6']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -131,15 +141,20 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
           <Text style={styles.reelsBrand}>Reels</Text>
         </GlassView>
 
-        <Pressable onPress={onToggleMute}>
-          <GlassView style={styles.muteChip} intensity={22}>
-            <Ionicons
-              name={muted ? 'volume-mute' : 'volume-high'}
-              size={16}
-              color="rgba(255,255,255,0.9)"
-            />
+        <View style={styles.topRight}>
+          <GlassView style={styles.counterChip} intensity={22}>
+            <Text style={styles.counterText}>{activeIndexForItem + 1}</Text>
           </GlassView>
-        </Pressable>
+          <Pressable onPress={onToggleMute}>
+            <GlassView style={styles.muteChip} intensity={22}>
+              <Ionicons
+                name={muted ? 'volume-mute' : 'volume-high'}
+                size={15}
+                color="rgba(255,255,255,0.9)"
+              />
+            </GlassView>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── RIGHT SIDEBAR — glass pill container ── */}
@@ -188,22 +203,25 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
 
       {/* ── BOTTOM INFO — glass card ── */}
       <View style={styles.infoWrap}>
-        <GlassView style={styles.infoCard} intensity={26}>
+        <GlassView style={styles.infoCard} intensity={28}>
 
           {/* Creator row */}
           <View style={styles.creatorRow}>
-            <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={styles.avatarRing}>
-              <View style={styles.avatarInner}>
-                <Text style={styles.avatarText}>{item.avatar}</Text>
-              </View>
-            </LinearGradient>
+            <View style={styles.avatarWrap}>
+              <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={styles.avatarRing}>
+                <View style={styles.avatarInner}>
+                  <Text style={styles.avatarText}>{item.avatar}</Text>
+                </View>
+              </LinearGradient>
+              <View style={styles.avatarOnline} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.creatorName}>{item.creator}</Text>
               <Text style={styles.creatorHandle}>{item.handle}</Text>
             </View>
-            <GlassView style={styles.followPill} intensity={14}>
-              <Text style={styles.followText}>+ Follow</Text>
-            </GlassView>
+            <LinearGradient colors={['#FF3B6B', '#8B5CF6']} start={{x:0,y:0}} end={{x:1,y:0}} style={styles.followPillGrad}>
+              <Text style={styles.followText}>Follow</Text>
+            </LinearGradient>
           </View>
 
           {/* Title */}
@@ -212,7 +230,7 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
           {/* Tags */}
           {item.tags?.length > 0 && (
             <View style={styles.tagRow}>
-              {item.tags.slice(0, 4).map((t) => (
+              {item.tags.slice(0, 3).map((t) => (
                 <GlassView key={t} style={styles.tagChip} intensity={10}>
                   <Text style={styles.tagText}>#{t}</Text>
                 </GlassView>
@@ -222,8 +240,11 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
         </GlassView>
       </View>
 
-      {/* ── PROGRESS BAR — glowing accent line ── */}
-      <View style={styles.progressTrack}>
+      {/* ── PROGRESS BAR ── */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.06)']}
+        style={styles.progressTrack}
+      >
         {isActive && !paused && (
           <MotiView
             from={{ width: '0%' }}
@@ -232,7 +253,7 @@ function ReelItem({ item, isActive, height, topInset, muted, onToggleMute, onTog
             style={styles.progressFill}
           />
         )}
-      </View>
+      </LinearGradient>
 
       {/* ── DOUBLE-TAP HEART BURST ── */}
       <AnimatePresence>
@@ -292,6 +313,7 @@ export default function ReelsScreen() {
       <ReelItem
         item={item}
         isActive={index === activeIndex}
+        activeIndexForItem={index}
         height={containerH}
         topInset={insets.top}
         muted={muted}
@@ -345,9 +367,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: spacing.lg,
   },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 7,
+    paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
@@ -356,11 +379,17 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.pill, borderBottomLeftRadius: radius.pill,
   },
   reelsBrand: {
-    color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: -0.8,
+    color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: -0.6,
     marginLeft: 6,
   },
+  counterChip: {
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: radius.pill, minWidth: 34,
+    alignItems: 'center',
+  },
+  counterText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700' },
   muteChip: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 34, height: 34, borderRadius: 17,
     justifyContent: 'center', alignItems: 'center',
   },
 
@@ -392,41 +421,49 @@ const styles = StyleSheet.create({
 
   /* Bottom info card */
   infoWrap: {
-    position: 'absolute', left: spacing.md, right: 70, bottom: 54,
+    position: 'absolute', left: spacing.md, right: 72, bottom: 60,
   },
   infoCard: {
-    borderRadius: radius.xl,
-    paddingHorizontal: 14, paddingVertical: 12,
-    gap: 8,
+    borderRadius: radius.xxl,
+    paddingHorizontal: 14, paddingVertical: 13,
+    gap: 9,
     overflow: 'hidden',
   },
   creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarRing: { padding: 2, borderRadius: 24 },
+  avatarWrap: { position: 'relative' },
+  avatarRing: { padding: 2.5, borderRadius: 26 },
   avatarInner: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: { color: '#fff', fontWeight: '900', fontSize: 13 },
-  creatorName: { color: '#fff', fontWeight: '800', fontSize: 13, letterSpacing: -0.2 },
-  creatorHandle: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
-  followPill: {
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: radius.pill,
+  avatarOnline: {
+    position: 'absolute', bottom: 1, right: 1,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: '#00FF41',
+    borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.6)',
   },
-  followText: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.4 },
+  avatarText: { color: '#fff', fontWeight: '900', fontSize: 13 },
+  creatorName: { color: '#fff', fontWeight: '800', fontSize: 13, letterSpacing: -0.3 },
+  creatorHandle: { color: 'rgba(255,255,255,0.45)', fontSize: 11 },
+  followPillGrad: {
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  followText: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
 
   reelTitle: {
-    color: '#fff', fontSize: 13, lineHeight: 18,
-    fontWeight: '600', letterSpacing: -0.1,
+    color: '#fff', fontSize: 13.5, lineHeight: 19,
+    fontWeight: '700', letterSpacing: -0.2,
   },
 
   tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tagChip: {
-    paddingHorizontal: 9, paddingVertical: 4,
+    paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: radius.pill,
   },
-  tagText: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '700' },
+  tagText: { color: 'rgba(255,255,255,0.75)', fontSize: 10.5, fontWeight: '700' },
 
   /* Progress */
   progressTrack: {
