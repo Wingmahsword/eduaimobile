@@ -40,6 +40,7 @@ yarn-error.*
 
 # local debug artifacts
 cms.log
+audit-report.json
 
 # typescript
 *.tsbuildinfo
