@@ -20,16 +20,23 @@ function corsHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+// Abuse-protection limits
+const MAX_MESSAGES = 20;
+const MAX_PAYLOAD_CHARS = 8000;
+
 module.exports = async (req, res) => {
   corsHeaders(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // Prefer OPENROUTER_KEY (spec), fall back to OPENROUTER_API_KEY (legacy).
+  // Trim any trailing whitespace/newlines that may leak via shell piping.
+  const rawKey = process.env.OPENROUTER_KEY || process.env.OPENROUTER_API_KEY || '';
+  const apiKey = rawKey.trim();
   if (!apiKey) {
     return res.status(503).json({
       error: 'AI not configured',
-      hint: 'Set OPENROUTER_API_KEY in Vercel project settings.',
+      hint: 'Set OPENROUTER_KEY in Vercel project settings.',
     });
   }
 
@@ -42,7 +49,7 @@ module.exports = async (req, res) => {
 
   const {
     messages,
-    modelId = DEFAULT_MODEL,
+    modelId = body.model || DEFAULT_MODEL,  // accept both `modelId` and `model`
     message,       // legacy: single string
     stream = false,
     temperature = 0.7,
@@ -59,6 +66,15 @@ module.exports = async (req, res) => {
     msgs = [{ role: 'user', content: message.trim() }];
   } else {
     return res.status(400).json({ error: 'Missing `messages` array or `message` string' });
+  }
+
+  // Abuse guards
+  if (msgs.length > MAX_MESSAGES) {
+    return res.status(400).json({ error: `Too many messages (max ${MAX_MESSAGES})` });
+  }
+  const payloadChars = msgs.reduce((n, m) => n + (m.content?.length || 0), 0);
+  if (payloadChars > MAX_PAYLOAD_CHARS) {
+    return res.status(400).json({ error: `Input too long (max ${MAX_PAYLOAD_CHARS} chars)` });
   }
 
   const origin = req.headers.origin || process.env.OPENROUTER_SITE_URL || 'https://eduai-mobile.vercel.app';
