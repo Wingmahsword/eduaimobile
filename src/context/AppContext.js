@@ -1,22 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { COURSES, REELS, GENERATED_REELS, API_BASE, CMS_BASE } from '../constants/data';
+import { COURSES, REELS, GENERATED_REELS, API_BASE } from '../constants/data';
 import { supabase } from '../lib/supabase';
+import { fetchReels } from '../services/reelsService';
 
 const AppContext = createContext(null);
-
-function mergeReels(primary, generated = []) {
-  const byId = new Map();
-  [...primary, ...generated].forEach((r) => {
-    if (r?.id) byId.set(r.id, r);
-  });
-  return Array.from(byId.values());
-}
 
 export function AppProvider({ children, userId }) {
   const [enrolled, setEnrolled] = useState([]);
   const [likedReels, setLikedReels] = useState([]);
   const [savedReels, setSavedReels] = useState([]);
   const [cmsReels, setCmsReels] = useState(REELS);
+  const [reelsStatus, setReelsStatus] = useState('loading'); // loading | ready | error
   const [coins, setCoins] = useState(100);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: "Hey! I'm your AI learning assistant. Ask me anything about ML, prompt engineering, or deep learning." },
@@ -27,17 +21,10 @@ export function AppProvider({ children, userId }) {
     const canUseSupabase = !!supabase && !!userId && userId !== 'demo-user';
 
     async function loadRemoteData() {
-      try {
-        const res = await fetch(`${CMS_BASE}/api/reels`);
-        if (!res.ok) throw new Error(`CMS ${res.status}`);
-        const data = await res.json();
-        if (mounted && Array.isArray(data.reels)) {
-          const merged = mergeReels(data.reels, GENERATED_REELS);
-          setCmsReels(merged.length ? merged : REELS);
-        }
-      } catch (_) {
-        if (mounted) setCmsReels(mergeReels(REELS, GENERATED_REELS));
-      }
+      const { reels, error } = await fetchReels();
+      if (!mounted) return;
+      setCmsReels(reels && reels.length ? reels : [...REELS, ...GENERATED_REELS]);
+      setReelsStatus(error ? 'error' : 'ready');
     }
 
     async function loadUserData() {
@@ -131,7 +118,7 @@ export function AppProvider({ children, userId }) {
   const reels = cmsReels.map((r) => ({ ...r, liked: likedReels.includes(r.id), saved: savedReels.includes(r.id) }));
 
   return (
-    <AppContext.Provider value={{ courses, reels, coins, messages, enrollCourse, toggleLike, toggleSave, sendMessage }}>
+    <AppContext.Provider value={{ courses, reels, reelsStatus, coins, messages, enrollCourse, toggleLike, toggleSave, sendMessage }}>
       {children}
     </AppContext.Provider>
   );

@@ -121,7 +121,7 @@ function VideoLayer({ youtubeId, hlsUrl, isActive, paused, muted, height }) {
 }
 
 /* ─── Single action button ─────────────────────────────────────────── */
-function ActionBtn({ icon, count, onPress, active = false, activeColor = '#FF3B6B' }) {
+function ActionBtn({ icon, count, onPress, active = false, activeColor = '#7c6dfa' }) {
   return (
     <Pressable onPress={onPress} style={S.actionBtn}>
       <GlassView style={S.actionCircle} intensity={24}>
@@ -215,7 +215,7 @@ function ReelItem({
       <View style={[S.topBar, { paddingTop: Math.max(14, topInset + 8) }]}>
         <GlassView style={S.brandPill} intensity={26}>
           <LinearGradient
-            colors={['#FF3B6B', '#8B5CF6']}
+            colors={['#7c6dfa', '#5eead4']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={S.brandStripe}
           />
@@ -244,7 +244,7 @@ function ReelItem({
           count={item.likes}
           onPress={onToggleLike}
           active={item.liked}
-          activeColor="#FF3B6B"
+          activeColor="#7c6dfa"
         />
         <ActionBtn
           icon="chatbubble-ellipses-outline"
@@ -255,7 +255,7 @@ function ReelItem({
           count="Save"
           onPress={onToggleSave}
           active={item.saved}
-          activeColor="#06B6D4"
+          activeColor="#5eead4"
         />
         <ActionBtn
           icon="paper-plane-outline"
@@ -269,7 +269,7 @@ function ReelItem({
           style={{ marginTop: 6 }}
         >
           <GlassView style={S.disc} intensity={26}>
-            <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['#7c6dfa', '#5eead4']} style={StyleSheet.absoluteFill} />
             <Ionicons name="musical-notes" size={13} color="#fff" />
           </GlassView>
         </MotiView>
@@ -280,7 +280,7 @@ function ReelItem({
         {/* Creator row */}
         <View style={S.creatorRow}>
           <View style={S.avatarWrap}>
-            <LinearGradient colors={['#FF3B6B', '#8B5CF6']} style={S.avatarRing}>
+            <LinearGradient colors={['#7c6dfa', '#5eead4']} style={S.avatarRing}>
               <View style={S.avatarInner}>
                 <Text style={S.avatarText}>{item.avatar}</Text>
               </View>
@@ -292,7 +292,7 @@ function ReelItem({
             <Text style={S.creatorHandle}>{item.handle}</Text>
           </View>
           <LinearGradient
-            colors={['#FF3B6B', '#8B5CF6']}
+            colors={['#7c6dfa', '#5eead4']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={S.followBtn}
           >
@@ -346,7 +346,7 @@ function ReelItem({
             style={S.heartOverlay}
             pointerEvents="none"
           >
-            <Ionicons name="heart" size={140} color="#FF3B6B" />
+            <Ionicons name="heart" size={140} color="#7c6dfa" />
           </MotiView>
         )}
       </AnimatePresence>
@@ -509,7 +509,7 @@ const S = StyleSheet.create({
   onlineDot: {
     position: 'absolute', bottom: 1, right: 1,
     width: 11, height: 11, borderRadius: 6,
-    backgroundColor: '#22C55E',
+    backgroundColor: '#5eead4',
     borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.7)',
   },
   avatarText:     { color: '#fff', fontWeight: '900', fontSize: 13 },
@@ -543,8 +543,8 @@ const S = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#FF3B6B',
-    shadowColor: '#FF3B6B',
+    backgroundColor: '#7c6dfa',
+    shadowColor: '#7c6dfa',
     shadowOpacity: 0.9, shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
   },

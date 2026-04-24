@@ -3,8 +3,12 @@ const { createClient } = require('@supabase/supabase-js');
 const ADMIN_TOKEN = process.env.CMS_ADMIN_TOKEN || '';
 
 function getSupabase() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) return null;
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+  try {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) return null;
+    return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 const FALLBACK = [
@@ -52,25 +56,49 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,x-admin-token');
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const sb = getSupabase();
+  try {
+    const sb = getSupabase();
 
-  if (req.method === 'GET') {
-    if (!sb) return res.json({ reels: FALLBACK, _source: 'fallback' });
-    const { data, error } = await sb.from('reels').select('*').order('created_at', { ascending: false });
-    if (error) return res.json({ reels: FALLBACK, _source: 'fallback' });
-    return res.json({ reels: data.map(toApi) });
+    if (req.method === 'GET') {
+      if (!sb) return res.json({ reels: FALLBACK, _source: 'fallback' });
+      try {
+        const { data, error } = await sb
+          .from('reels')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error || !Array.isArray(data) || data.length === 0) {
+          return res.json({ reels: FALLBACK, _source: 'fallback' });
+        }
+        return res.json({ reels: data.map(toApi), _source: 'supabase' });
+      } catch {
+        return res.json({ reels: FALLBACK, _source: 'fallback-exception' });
+      }
+    }
+
+    if (req.method === 'POST') {
+      if (!ADMIN_TOKEN || req.headers['x-admin-token'] !== ADMIN_TOKEN)
+        return res.status(401).json({ error: 'Unauthorized' });
+      if (!sb)
+        return res.status(503).json({ error: 'Database not configured — set SUPABASE_URL and SUPABASE_SERVICE_KEY in Vercel' });
+      try {
+        const { data, error } = await sb
+          .from('reels')
+          .insert(toRow(req.body || {}))
+          .select()
+          .single();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(201).json({ reel: toApi(data) });
+      } catch (e) {
+        return res.status(500).json({ error: e?.message || 'Insert failed' });
+      }
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch {
+    // Hard fallback — never 500 on GET
+    return res.json({ reels: FALLBACK, _source: 'fallback-fatal' });
   }
-
-  if (req.method === 'POST') {
-    if (!ADMIN_TOKEN || req.headers['x-admin-token'] !== ADMIN_TOKEN)
-      return res.status(401).json({ error: 'Unauthorized' });
-    if (!sb) return res.status(503).json({ error: 'Database not configured — set SUPABASE_URL and SUPABASE_SERVICE_KEY in Vercel' });
-    const { data, error } = await sb.from('reels').insert(toRow(req.body||{})).select().single();
-    if (error) return res.status(500).json({ error: error.message });
-    return res.status(201).json({ reel: toApi(data) });
-  }
-
-  res.status(405).json({ error: 'Method not allowed' });
 };
