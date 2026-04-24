@@ -27,7 +27,10 @@ export async function chatOnce(messages, modelId) {
       return {
         reply: '',
         error: data?.error || `HTTP ${res.status}`,
+        detail: data?.detail,
         missingKey: res.status === 503,
+        rateLimited: res.status === 429,
+        status: res.status,
       };
     }
     return { reply: data.reply || '', model: data.model };
@@ -58,7 +61,13 @@ export async function chatStream(messages, modelId, onChunk) {
   if (!res.ok) {
     let errMsg = `HTTP ${res.status}`;
     try { const j = await res.json(); errMsg = j?.error || errMsg; } catch {}
-    return { ok: false, error: errMsg, missingKey: res.status === 503 };
+    return {
+      ok: false,
+      error: errMsg,
+      missingKey: res.status === 503,
+      rateLimited: res.status === 429,
+      status: res.status,
+    };
   }
 
   // Some hosts (older native fetch) may not support `res.body.getReader()`.

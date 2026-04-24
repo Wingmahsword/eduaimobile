@@ -98,8 +98,23 @@ module.exports = async (req, res) => {
   }).catch((e) => ({ ok: false, status: 502, _err: e?.message || 'network' }));
 
   if (!upstream || !upstream.ok) {
-    const errText = upstream?._err || (await (upstream?.text?.() || Promise.resolve(''))) || 'Upstream error';
-    return res.status(upstream?.status || 502).json({ error: 'AI upstream failed', detail: errText });
+    const status = upstream?.status || 502;
+    let detail = upstream?._err || '';
+    try {
+      const raw = await (upstream?.text?.() || Promise.resolve(''));
+      if (raw) {
+        try {
+          const j = JSON.parse(raw);
+          detail = j?.error?.message || j?.error || raw;
+        } catch { detail = raw; }
+      }
+    } catch {}
+    const friendly =
+      status === 429 ? 'This free model is rate-limited. Try a different agent or retry in a minute.' :
+      status === 404 ? 'Model not available.' :
+      status === 401 ? 'AI key is invalid. Update OPENROUTER_KEY in Vercel.' :
+      'AI upstream failed';
+    return res.status(status).json({ error: friendly, detail: String(detail || '').slice(0, 400) });
   }
 
   // ── Streaming (SSE passthrough) ─────────────────────────────

@@ -140,7 +140,15 @@ export function AppProvider({ children, userId }) {
 
     if (stream.missingKey) {
       finalise({
-        content: '⚠️ AI is not configured yet. Ask the admin to set `OPENROUTER_API_KEY` in Vercel.',
+        content: '⚠️ AI is not configured yet. Ask the admin to set `OPENROUTER_KEY` in Vercel.',
+        error: true,
+      });
+      return;
+    }
+
+    if (stream.rateLimited) {
+      finalise({
+        content: '⏱️ This free model is rate-limited right now. Try another agent, or wait a minute and retry.',
         error: true,
       });
       return;
@@ -150,6 +158,11 @@ export function AppProvider({ children, userId }) {
     const once = await chatOnce(transcript, modelId);
     if (once.reply) {
       finalise({ content: once.reply });
+    } else if (once.rateLimited) {
+      finalise({
+        content: '⏱️ This free model is rate-limited right now. Try another agent, or wait a minute and retry.',
+        error: true,
+      });
     } else {
       finalise({
         content: `Live AI unavailable${once.error ? ` (${once.error})` : ''}. Try again.`,
