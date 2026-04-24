@@ -2,7 +2,7 @@
  * AI service — talks to the `/api/chat` Vercel function (OpenRouter proxy).
  *
  * Exposes:
- *   - chatOnce(messages, modelId)         → { reply, error? }  (single-shot, no streaming)
+ *   - chatOnce(messages, modelId)         → { reply, model, fallbackUsed, error? }
  *   - chatStream(messages, modelId, onChunk) → finishes when the stream ends
  *
  * The API key is stored server-side; clients never see it. If the endpoint
@@ -39,7 +39,11 @@ export async function chatOnce(messages, modelId) {
         status: res.status,
       };
     }
-    return { reply: data.reply || '', model: data.model };
+    return {
+      reply: data.reply || '',
+      model: data.model || modelId,
+      fallbackUsed: Boolean(data.fallbackUsed),
+    };
   } catch (e) {
     return { reply: '', error: e?.message || 'Network error' };
   }
@@ -81,12 +85,17 @@ export async function chatStream(messages, modelId, onChunk) {
     };
   }
 
+  const streamModel =
+    (typeof res.headers?.get === 'function' && (res.headers.get('x-ai-model') || res.headers.get('X-AI-Model'))) ||
+    modelId;
+  const fallbackUsed = streamModel !== modelId;
+
   // Some hosts (older native fetch) may not support `res.body.getReader()`.
   // Fall back to one-shot text if not.
   if (!res.body || typeof res.body.getReader !== 'function') {
     const text = await res.text();
     parseSSEBlock(text, onChunk);
-    return { ok: true };
+    return { ok: true, model: streamModel, fallbackUsed };
   }
 
   const reader = res.body.getReader();
@@ -104,7 +113,7 @@ export async function chatStream(messages, modelId, onChunk) {
     for (const part of parts) parseSSEEvent(part, onChunk);
   }
   if (buffer) parseSSEEvent(buffer, onChunk);
-  return { ok: true };
+  return { ok: true, model: streamModel, fallbackUsed };
 }
 
 function parseSSEEvent(raw, onChunk) {

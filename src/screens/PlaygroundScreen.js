@@ -230,6 +230,14 @@ export default function PlaygroundScreen() {
                     <Text style={{ color: model.color }}> ▋</Text>
                   )}
                 </Text>
+                {m.role === 'assistant' && !m.streaming && m.fallbackUsed && (
+                  <View style={styles.fallbackRow}>
+                    <Ionicons name="swap-horizontal" size={12} color="rgba(255,255,255,0.62)" />
+                    <Text style={styles.fallbackText} numberOfLines={1}>
+                      Backup model used{m.model ? `: ${m.model}` : ''}
+                    </Text>
+                  </View>
+                )}
               </View>
             </MotiView>
           ))}
@@ -318,6 +326,8 @@ const styles = StyleSheet.create({
   userBubble: { borderBottomRightRadius: 4 },
   aiBubble: { borderBottomLeftRadius: 4, backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.1)' },
   bubbleText: { color: '#fff', fontSize: 14, lineHeight: 21 },
+  fallbackRow: { marginTop: 8, paddingTop: 7, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fallbackText: { color: 'rgba(255,255,255,0.62)', fontSize: 11, flexShrink: 1 },
 
   inputWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingBottom: Platform.OS === 'ios' ? 90 : 82, paddingTop: 8 },
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, backgroundColor: '#111', borderRadius: 26, paddingLeft: 18, paddingRight: 6, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },

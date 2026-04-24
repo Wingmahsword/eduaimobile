@@ -134,7 +134,10 @@ export function AppProvider({ children, userId }) {
     // Try streaming first
     const stream = await chatStream(transcript, modelId, appendToLastAssistant);
     if (stream.ok) {
-      finalise({});
+      finalise({
+        model: stream.model || modelId,
+        fallbackUsed: Boolean(stream.fallbackUsed),
+      });
       return;
     }
 
@@ -157,7 +160,11 @@ export function AppProvider({ children, userId }) {
     // Fallback to non-streaming
     const once = await chatOnce(transcript, modelId);
     if (once.reply) {
-      finalise({ content: once.reply });
+      finalise({
+        content: once.reply,
+        model: once.model || modelId,
+        fallbackUsed: Boolean(once.fallbackUsed),
+      });
     } else if (once.rateLimited) {
       finalise({
         content: '⏱️ This free model is rate-limited right now. Try another agent, or wait a minute and retry.',
