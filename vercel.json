@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/chat.js": { "maxDuration": 30 }
+  },
   "rewrites": [
     { "source": "/_expo/:path*",  "destination": "/dist/_expo/:path*" },
     { "source": "/assets/:path*", "destination": "/dist/assets/:path*" },

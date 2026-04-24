@@ -104,6 +104,8 @@ module.exports = async (req, res) => {
   const origin = req.headers.origin || process.env.OPENROUTER_SITE_URL || 'https://eduai-mobile.vercel.app';
   const appName = process.env.OPENROUTER_APP_NAME || 'EduAI Mobile';
 
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), 25_000); // < function maxDuration
   const upstream = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
@@ -119,7 +121,12 @@ module.exports = async (req, res) => {
       temperature,
       max_tokens,
     }),
-  }).catch((e) => ({ ok: false, status: 502, _err: e?.message || 'network' }));
+    signal: controller.signal,
+  }).catch((e) => {
+    const aborted = e?.name === 'AbortError';
+    return { ok: false, status: aborted ? 504 : 502, _err: aborted ? 'Upstream timeout (25s)' : (e?.message || 'network') };
+  });
+  clearTimeout(abortTimer);
 
   if (!upstream || !upstream.ok) {
     const status = upstream?.status || 502;
