@@ -222,9 +222,6 @@ function ReelItem({
           <Text style={S.brandText}>Reels</Text>
         </GlassView>
         <View style={S.topRight}>
-          <GlassView style={S.numChip} intensity={22}>
-            <Text style={S.numText}>{index + 1}</Text>
-          </GlassView>
           <Pressable onPress={onToggleMute}>
             <GlassView style={S.iconChip} intensity={22}>
               <Ionicons

@@ -1,45 +1,49 @@
 import React from 'react';
-import { View, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { MotiView } from 'moti';
-import { radius } from '../constants/theme';
 
+/* ── Palette (matches global violet/teal system) ─────────────── */
+const ACCENT = '#7c6dfa';
+const INACTIVE = 'rgba(240,240,255,0.40)';
+const ACTIVE_LABEL = '#f0f0ff';
+
+/* ── Icon mapping — lucide-like semantics via Ionicons ───────── */
 const ICONS = {
-  Home: 'home',
-  Courses: 'compass',
-  Reels: 'play-circle',
-  Playground: 'sparkles',
+  Home:        { active: 'home',        inactive: 'home-outline' },
+  Courses:     { active: 'book',        inactive: 'book-outline' },
+  Reels:       { active: 'play',        inactive: 'play-outline' },
+  Playground:  { active: 'sparkles',    inactive: 'sparkles-outline' },
+  Profile:     { active: 'person-circle', inactive: 'person-circle-outline' },
 };
 
 function TabButton({ route, isFocused, onPress }) {
   const sv = useSharedValue(1);
   const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: sv.value }] }));
-  const iconName = (ICONS[route.name] ?? 'ellipse') + (isFocused ? '' : '-outline');
+  const mapping = ICONS[route.name] || { active: 'ellipse', inactive: 'ellipse-outline' };
+  const iconName = isFocused ? mapping.active : mapping.inactive;
 
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => { sv.value = withSpring(0.8, { damping: 14, stiffness: 460 }); }}
+      onPressIn={() => { sv.value = withSpring(0.85, { damping: 14, stiffness: 460 }); }}
       onPressOut={() => { sv.value = withSpring(1, { damping: 10, stiffness: 280 }); }}
       style={styles.tab}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
     >
       <Animated.View style={[styles.iconBox, aStyle]}>
-        {isFocused && (
-          <MotiView
-            from={{ opacity: 0, scale: 0.4 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 16, stiffness: 280 }}
-            style={styles.activeBg}
-          />
-        )}
         <Ionicons
           name={iconName}
-          size={isFocused ? 25 : 23}
-          color={isFocused ? '#ffffff' : 'rgba(255,255,255,0.38)'}
+          size={22}
+          color={isFocused ? ACCENT : INACTIVE}
         />
       </Animated.View>
+      <Text style={[styles.label, { color: isFocused ? ACTIVE_LABEL : INACTIVE }]}>
+        {route.name}
+      </Text>
       {isFocused && (
         <MotiView
           from={{ opacity: 0, scaleX: 0 }}
@@ -56,22 +60,21 @@ export default function GlassTabBar({ state, navigation }) {
   const useBlur = Platform.OS !== 'web';
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
-      <View style={styles.pill}>
-        {useBlur ? (
-          <BlurView intensity={65} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.webFill]} />
-        )}
-        <View style={styles.row}>
-          {state.routes.map((route, index) => {
-            const isFocused = state.index === index;
-            const onPress = () => {
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
-            };
-            return <TabButton key={route.key} route={route} isFocused={isFocused} onPress={onPress} />;
-          })}
-        </View>
+      {useBlur ? (
+        <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.webFill]} />
+      )}
+      <View style={styles.topBorder} />
+      <View style={styles.row}>
+        {state.routes.map((route, index) => {
+          const isFocused = state.index === index;
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+          };
+          return <TabButton key={route.key} route={route} isFocused={isFocused} onPress={onPress} />;
+        })}
       </View>
     </View>
   );
@@ -81,30 +84,43 @@ const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
     left: 0, right: 0, bottom: 0,
-    paddingHorizontal: 18,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+    paddingBottom: Platform.OS === 'ios' ? 22 : 10,
+    paddingTop: 6,
+    backgroundColor: 'rgba(9,9,16,0.85)',
   },
-  pill: {
-    borderRadius: radius.xxl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(0,0,0,0.72)',
+  topBorder: {
+    position: 'absolute', left: 0, right: 0, top: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
-  row: { flexDirection: 'row', paddingVertical: 8 },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 5 },
-  iconBox: { width: 48, height: 38, alignItems: 'center', justifyContent: 'center' },
-  activeBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.11)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+  row: { flexDirection: 'row' },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    minHeight: 52,              // ≥44px touch target
+    gap: 3,
   },
-  activeDot: { width: 18, height: 3, borderRadius: 1.5, backgroundColor: '#ffffff' },
+  iconBox: {
+    width: 44, height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+  activeDot: {
+    position: 'absolute', bottom: 2,
+    width: 14, height: 2,
+    borderRadius: 1,
+    backgroundColor: ACCENT,
+  },
   webFill: {
-    backgroundColor: 'rgba(0,0,0,0.88)',
-    backdropFilter: 'blur(24px) saturate(1.5)',
-    WebkitBackdropFilter: 'blur(24px) saturate(1.5)',
+    backgroundColor: 'rgba(9,9,16,0.85)',
+    backdropFilter: 'blur(20px) saturate(1.4)',
+    WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
   },
 });

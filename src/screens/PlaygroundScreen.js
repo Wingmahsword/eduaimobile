@@ -136,10 +136,17 @@ export default function PlaygroundScreen() {
                 style={styles.welcomeGrad}
               >
                 <View style={[styles.welcomeAvatar, { backgroundColor: model.color + '30', borderColor: model.color + '60' }]}>
-                  <Ionicons name="sparkles" size={28} color={model.color} />
+                  <Ionicons name={model.icon || 'sparkles'} size={28} color={model.color} />
                 </View>
                 <Text style={styles.welcomeTitle}>{model.name}</Text>
-                <Text style={styles.welcomeSub}>{model.org} · Ready to help</Text>
+                {model.tag && (
+                  <View style={[styles.tagChip, { borderColor: model.color + '55', backgroundColor: model.color + '1a' }]}>
+                    <Text style={[styles.tagText, { color: model.color }]}>{model.tag}</Text>
+                  </View>
+                )}
+                <Text style={styles.welcomeSub}>
+                  {model.description || `${model.org} · Ready to help`}
+                </Text>
               </LinearGradient>
             </MotiView>
           )}
@@ -185,14 +192,20 @@ export default function PlaygroundScreen() {
                 m.role === 'user'
                   ? [styles.userBubble, { backgroundColor: model.color + '28', borderColor: model.color + '55' }]
                   : styles.aiBubble,
+                m.error && { borderColor: 'rgba(244,114,182,0.45)' },
               ]}>
-                <Text style={styles.bubbleText}>{m.content}</Text>
+                <Text style={styles.bubbleText}>
+                  {m.content}
+                  {m.role === 'assistant' && m.streaming && (
+                    <Text style={{ color: model.color }}> ▋</Text>
+                  )}
+                </Text>
               </View>
             </MotiView>
           ))}
 
-          {/* Thinking indicator */}
-          {thinking && (
+          {/* Thinking indicator — only when assistant is streaming with no content yet */}
+          {visible.some((m) => m.role === 'assistant' && m.streaming && !m.content) && (
             <MotiView
               from={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -246,7 +259,9 @@ const styles = StyleSheet.create({
   welcomeGrad: { borderRadius: radius.xl, padding: 24, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   welcomeAvatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   welcomeTitle: { color: '#fff', fontSize: 18, fontWeight: '800', fontFamily: typography.family },
-  welcomeSub: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
+  tagChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, marginTop: 2 },
+  tagText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  welcomeSub: { color: 'rgba(255,255,255,0.55)', fontSize: 12, textAlign: 'center' },
 
   starters: { gap: 8, marginBottom: 8 },
   starterLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '800', letterSpacing: 2, marginBottom: 4 },

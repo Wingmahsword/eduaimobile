@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { COURSES, REELS, GENERATED_REELS, API_BASE } from '../constants/data';
+import { COURSES, REELS, GENERATED_REELS } from '../constants/data';
 import { supabase } from '../lib/supabase';
 import { fetchReels } from '../services/reelsService';
+import { chatStream, chatOnce } from '../services/aiService';
 
 const AppContext = createContext(null);
 
@@ -92,25 +93,68 @@ export function AppProvider({ children, userId }) {
     }
   };
 
-  const sendMessage = async (text, modelId = 'gpt4o') => {
-    setMessages((p) => [...p, { role: 'user', content: text }, { role: 'thinking' }]);
-    try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, modelId }),
+  const sendMessage = async (text, modelId) => {
+    // Build the transcript BEFORE updating state so the network call sees it.
+    const priorMessages = messages.filter((m) => m.role === 'user' || m.role === 'assistant');
+    const transcript = [...priorMessages, { role: 'user', content: text }];
+
+    // Insert user msg + an empty streaming assistant placeholder
+    setMessages((p) => [
+      ...p.filter((m) => m.role !== 'thinking'),
+      { role: 'user', content: text },
+      { role: 'assistant', content: '', model: modelId, streaming: true },
+    ]);
+
+    const appendToLastAssistant = (delta) => {
+      setMessages((p) => {
+        const copy = [...p];
+        for (let i = copy.length - 1; i >= 0; i--) {
+          if (copy[i].role === 'assistant' && copy[i].streaming) {
+            copy[i] = { ...copy[i], content: copy[i].content + delta };
+            break;
+          }
+        }
+        return copy;
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Request failed');
-      setMessages((p) => [
-        ...p.filter((m) => m.role !== 'thinking'),
-        { role: 'assistant', content: data.reply, model: modelId },
-      ]);
-    } catch (e) {
-      setMessages((p) => [
-        ...p.filter((m) => m.role !== 'thinking'),
-        { role: 'assistant', content: `Live AI unavailable (${e.message}). Try again.`, model: modelId },
-      ]);
+    };
+
+    const finalise = (patch) => {
+      setMessages((p) => {
+        const copy = [...p];
+        for (let i = copy.length - 1; i >= 0; i--) {
+          if (copy[i].role === 'assistant' && copy[i].streaming) {
+            copy[i] = { ...copy[i], streaming: false, ...patch };
+            break;
+          }
+        }
+        return copy;
+      });
+    };
+
+    // Try streaming first
+    const stream = await chatStream(transcript, modelId, appendToLastAssistant);
+    if (stream.ok) {
+      finalise({});
+      return;
+    }
+
+    if (stream.missingKey) {
+      finalise({
+        content: '⚠️ AI is not configured yet. Ask the admin to set `OPENROUTER_API_KEY` in Vercel.',
+        error: true,
+      });
+      return;
+    }
+
+    // Fallback to non-streaming
+    const once = await chatOnce(transcript, modelId);
+    if (once.reply) {
+      finalise({ content: once.reply });
+    } else {
+      finalise({
+        content: `Live AI unavailable${once.error ? ` (${once.error})` : ''}. Try again.`,
+        error: true,
+      });
     }
   };
 

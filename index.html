@@ -3,18 +3,39 @@
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <meta name="description" content="EduAI — AI-powered learning, bite-sized reels, and curated courses." />
+    <meta name="theme-color" content="#090910" />
+    <meta property="og:title" content="EduAI" />
+    <meta property="og:description" content="AI-powered learning, bite-sized reels, and curated courses." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://eduai-mobile.vercel.app" />
+    <meta name="twitter:card" content="summary_large_image" />
     <title>EduAI</title>
     <style id="expo-reset">
-      html, body { height: 100%; }
-      body { overflow: hidden; }
-      #root { display: flex; height: 100%; flex: 1; }
+      html, body { height: 100%; background-color: #090910; }
+      body { overflow: hidden; margin: 0; }
+      #root { display: flex; height: 100%; flex: 1; background-color: #090910; }
+      /* Respect user's motion preference */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+      /* Thin scrollbar */
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(124,109,250,0.35); border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(124,109,250,0.55); }
     </style>
     <link rel="icon" href="/favicon.ico" />
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
-    <script src="/_expo/static/js/web/index-c37eb7070ac977f4f560cb5ca83121b6.js" defer></script>
+    <script src="/_expo/static/js/web/index-0e860a004dc89ad92ca66d736082d44c.js" defer></script>
   </body>
 </html>

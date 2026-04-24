@@ -85,14 +85,55 @@ export const GENERATED_REELS = Array.from({ length: 100 }, (_, i) => {
 export const REELS = [...BASE_REELS, ...GENERATED_REELS];
 
 export const MODELS = [
-  { id: 'gpt4o',    name: 'GPT-4o',     org: 'OpenAI',     color: '#10a37f' },
-  { id: 'claude35', name: 'Claude 3.5', org: 'Anthropic',  color: '#d4a27f' },
-  { id: 'gemini',   name: 'Gemini Pro', org: 'Google',     color: '#4285f4' },
-  { id: 'mistral',  name: 'Mistral 7B', org: 'Mistral AI', color: '#ff6b35' },
-  { id: 'llama3',   name: 'Llama 3',    org: 'Meta',       color: '#0082fb' },
+  {
+    id: 'meta-llama/llama-3.3-70b-instruct:free',
+    name: 'Llama 3.3',
+    org: 'Meta',
+    color: '#7c6dfa',
+    tag: 'Best Overall',
+    icon: 'sparkles',
+    description: 'Fast, accurate, great for explanations',
+  },
+  {
+    id: 'google/gemini-2.0-flash-exp:free',
+    name: 'Gemini 2.0',
+    org: 'Google',
+    color: '#5eead4',
+    tag: 'Fastest',
+    icon: 'flash',
+    description: 'Lightning-quick answers',
+  },
+  {
+    id: 'deepseek/deepseek-r1:free',
+    name: 'DeepSeek R1',
+    org: 'DeepSeek',
+    color: '#f472b6',
+    tag: 'Best Reasoning',
+    icon: 'bulb',
+    description: 'Step-by-step problem solving',
+  },
+  {
+    id: 'mistralai/mistral-7b-instruct:free',
+    name: 'Mistral 7B',
+    org: 'Mistral',
+    color: '#f59e0b',
+    tag: 'Lightweight',
+    icon: 'leaf',
+    description: 'Efficient and reliable',
+  },
+  {
+    id: 'qwen/qwen-2.5-72b-instruct:free',
+    name: 'Qwen 2.5',
+    org: 'Alibaba',
+    color: '#38bdf8',
+    tag: 'Multilingual',
+    description: 'Great for diverse subjects',
+    icon: 'globe',
+  },
 ];
 
-export const API_BASE = 'https://aipramgram.vercel.app';
-// CMS API is the Vercel serverless function at /api/reels on the same deployment.
+// AI chat + CMS both live as serverless functions on the same Vercel deployment.
+export const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL
+  || 'https://eduai-mobile.vercel.app';
 export const CMS_BASE = process.env.EXPO_PUBLIC_CMS_BASE_URL
   || 'https://eduai-mobile.vercel.app';
