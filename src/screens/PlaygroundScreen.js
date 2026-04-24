@@ -7,7 +7,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { MotiView } from 'moti';
 import ScalePressable from '../components/ScalePressable';
 import { colors, spacing, radius, typography } from '../constants/theme';
-import { MODELS } from '../constants/data';
+import { MODELS, API_BASE } from '../constants/data';
 import { useApp } from '../context/AppContext';
 
 const STARTERS = [
@@ -55,6 +55,7 @@ export default function PlaygroundScreen() {
   const [model, setModel] = useState(MODELS[0]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [aiReady, setAiReady] = useState(null); // null=checking, true=ready, false=warming/error
   const scrollRef = useRef(null);
 
   const visible = messages.filter((m) => m.role !== 'thinking');
@@ -64,9 +65,31 @@ export default function PlaygroundScreen() {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
+  useEffect(() => {
+    let alive = true;
+    async function checkAiHealth() {
+      try {
+        const res = await fetch(`${API_BASE}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'openai/gpt-oss-120b:free',
+            messages: [{ role: 'user', content: 'ping' }],
+            stream: false,
+          }),
+        });
+        if (alive) setAiReady(res.ok || res.status === 429);
+      } catch {
+        if (alive) setAiReady(false);
+      }
+    }
+    checkAiHealth();
+    return () => { alive = false; };
+  }, []);
+
   const send = async (override) => {
     const value = (override ?? text).trim();
-    if (!value || sending) return;
+    if (!value || sending || aiReady === false) return;
     setText('');
     setSending(true);
     await sendMessage(value, model.id);
@@ -123,6 +146,13 @@ export default function PlaygroundScreen() {
           contentContainerStyle={styles.chatArea}
           showsVerticalScrollIndicator={false}
         >
+          {aiReady === false && (
+            <View style={styles.warmupBanner}>
+              <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.warmupText}>AI is warming up...</Text>
+            </View>
+          )}
+
           {/* Welcome state */}
           {visible.length <= 1 && (
             <MotiView
@@ -228,13 +258,14 @@ export default function PlaygroundScreen() {
             <TextInput
               value={text}
               onChangeText={setText}
+              editable={aiReady !== false}
               placeholder={`Message ${model.name}…`}
               placeholderTextColor="rgba(255,255,255,0.3)"
               style={styles.input}
               multiline
               maxLength={2000}
             />
-            <SendButton onPress={() => send()} disabled={sending || !text.trim()} color={model.color} />
+            <SendButton onPress={() => send()} disabled={sending || !text.trim() || aiReady === false} color={model.color} />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -254,6 +285,17 @@ const styles = StyleSheet.create({
   pipDot: { width: 10, height: 10, borderRadius: 5 },
 
   chatArea: { padding: spacing.lg, gap: 12, paddingBottom: 120 },
+
+  warmupBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 7,
+    marginBottom: 4,
+  },
+  warmupText: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '600' },
 
   welcomeCard: { alignSelf: 'center', width: '80%', marginBottom: 8 },
   welcomeGrad: { borderRadius: radius.xl, padding: 24, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },

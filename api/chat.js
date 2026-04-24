@@ -16,6 +16,20 @@ const MAX_MESSAGES   = 20;
 const MAX_CHARS      = 8000;
 
 module.exports = async (req, res) => {
+  try {
+    return await handler(req, res);
+  } catch (e) {
+    // Last-resort catch — avoid empty 503s and keep response non-sensitive.
+    console.error('[api/chat] unhandled error', e);
+    try {
+      res.status(500).json({ error: 'Internal server error' });
+    } catch {
+      try { res.statusCode = 500; res.end('internal server error'); } catch {}
+    }
+  }
+};
+
+async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -128,4 +142,4 @@ module.exports = async (req, res) => {
   if (!data) return res.status(502).json({ error: 'Invalid upstream response' });
   const reply = data?.choices?.[0]?.message?.content || '';
   return res.status(200).json({ reply, model: modelId, raw: data });
-};
+}

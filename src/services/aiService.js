@@ -14,6 +14,12 @@ import { API_BASE } from '../constants/data';
 
 const CHAT_URL = `${API_BASE}/api/chat`;
 
+function isMissingKey(status, errorMessage, detailMessage) {
+  if (status !== 503) return false;
+  const text = `${errorMessage || ''} ${detailMessage || ''}`.toLowerCase();
+  return text.includes('not configured') || text.includes('openrouter_key');
+}
+
 /* ─── Non-streaming ────────────────────────────────────────────── */
 export async function chatOnce(messages, modelId) {
   try {
@@ -28,7 +34,7 @@ export async function chatOnce(messages, modelId) {
         reply: '',
         error: data?.error || `HTTP ${res.status}`,
         detail: data?.detail,
-        missingKey: res.status === 503,
+        missingKey: isMissingKey(res.status, data?.error, data?.detail),
         rateLimited: res.status === 429,
         status: res.status,
       };
@@ -60,11 +66,16 @@ export async function chatStream(messages, modelId, onChunk) {
 
   if (!res.ok) {
     let errMsg = `HTTP ${res.status}`;
-    try { const j = await res.json(); errMsg = j?.error || errMsg; } catch {}
+    let errDetail = '';
+    try {
+      const j = await res.json();
+      errMsg = j?.error || errMsg;
+      errDetail = j?.detail || '';
+    } catch {}
     return {
       ok: false,
       error: errMsg,
-      missingKey: res.status === 503,
+      missingKey: isMissingKey(res.status, errMsg, errDetail),
       rateLimited: res.status === 429,
       status: res.status,
     };
