@@ -65,15 +65,6 @@ module.exports = async (req, res) => {
   const origin  = req.headers.origin || process.env.OPENROUTER_SITE_URL || 'https://eduai-mobile.vercel.app';
   const appName = process.env.OPENROUTER_APP_NAME || 'EduAI Mobile';
 
-  const trace = [];
-  const T = (s) => { trace.push({ s, t: Date.now() }); };
-  const sendTrace = (status, extra) => res.status(status).json({ trace, ...extra });
-  T('before_fetch');
-
-  // 25s abort — leaves 5s of 30s maxDuration for response serialisation.
-  const controller = new AbortController();
-  const abortTimer = setTimeout(() => controller.abort(), 25_000);
-
   let upstream;
   try {
     upstream = await fetch(OPENROUTER_URL, {
@@ -85,33 +76,32 @@ module.exports = async (req, res) => {
         'X-Title': appName,
       },
       body: JSON.stringify({ model: modelId, messages: msgs, stream, temperature, max_tokens }),
-      signal: controller.signal,
     });
-    T('fetch_returned');
   } catch (e) {
-    clearTimeout(abortTimer);
-    T('fetch_threw');
-    return sendTrace(502, { error: 'AI upstream failed', errName: e?.name, errMsg: e?.message });
+    return res.status(502).json({
+      error: 'AI upstream failed',
+      detail: (e && e.message) ? String(e.message).slice(0, 400) : 'network',
+    });
   }
-  clearTimeout(abortTimer);
-
-  T('post_fetch');
-  T('upstream_status_' + upstream.status);
-  T('upstream_ok_' + upstream.ok);
 
   if (!upstream.ok) {
     let detail = '';
     try {
       const raw = await upstream.text();
-      T('error_body_read_' + raw.length + 'b');
       try {
         const j = JSON.parse(raw);
         detail = j?.error?.message || j?.error || raw;
       } catch { detail = raw; }
-    } catch (e) {
-      T('error_body_threw_' + (e?.message || '?'));
-    }
-    return sendTrace(upstream.status, { error: 'AI upstream non-ok', detail: String(detail || '').slice(0, 400) });
+    } catch {}
+    const friendly =
+      upstream.status === 429 ? 'This free model is rate-limited. Try another agent or retry in a minute.' :
+      upstream.status === 404 ? 'Model not available.' :
+      upstream.status === 401 ? 'AI key is invalid. Update OPENROUTER_KEY in Vercel.' :
+      'AI upstream failed';
+    return res.status(upstream.status).json({
+      error: friendly,
+      detail: String(detail || '').slice(0, 400),
+    });
   }
 
   // Streaming (SSE passthrough)
