@@ -24,26 +24,50 @@ function corsHeaders(res) {
 const MAX_MESSAGES = 20;
 const MAX_PAYLOAD_CHARS = 8000;
 
+function sendJson(res, status, obj) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(obj));
+}
+
 module.exports = async (req, res) => {
   corsHeaders(res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method === 'OPTIONS') { res.statusCode = 200; return res.end(); }
+  if (req.method !== 'POST')    return sendJson(res, 405, { error: 'Method not allowed' });
 
   // Prefer OPENROUTER_KEY (spec), fall back to OPENROUTER_API_KEY (legacy).
   // Trim any trailing whitespace/newlines that may leak via shell piping.
   const rawKey = process.env.OPENROUTER_KEY || process.env.OPENROUTER_API_KEY || '';
   const apiKey = rawKey.trim();
   if (!apiKey) {
-    return res.status(503).json({
+    console.error('[chat] OPENROUTER_KEY missing at runtime');
+    return sendJson(res, 503, {
       error: 'AI not configured',
       hint: 'Set OPENROUTER_KEY in Vercel project settings.',
     });
   }
 
-  // Parse body (Vercel may or may not auto-parse)
+  // Parse body — Vercel Node runtime may deliver it as:
+  //   (a) an already-parsed object (content-type: application/json),
+  //   (b) a raw string,
+  //   (c) an unread IncomingMessage stream (when body middleware is skipped).
   let body = req.body;
-  if (typeof body === 'string') {
+  if (body && typeof body === 'object' && !Buffer.isBuffer(body) && typeof body.on !== 'function') {
+    // already-parsed object — good
+  } else if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
+  } else if (Buffer.isBuffer(body)) {
+    try { body = JSON.parse(body.toString('utf8')); } catch { body = {}; }
+  } else {
+    // Read raw request stream
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const raw = Buffer.concat(chunks).toString('utf8');
+      body = raw ? JSON.parse(raw) : {};
+    } catch {
+      body = {};
+    }
   }
   body = body || {};
 
@@ -65,16 +89,16 @@ module.exports = async (req, res) => {
   } else if (typeof message === 'string' && message.trim()) {
     msgs = [{ role: 'user', content: message.trim() }];
   } else {
-    return res.status(400).json({ error: 'Missing `messages` array or `message` string' });
+    return sendJson(res, 400, { error: 'Missing `messages` array or `message` string' });
   }
 
   // Abuse guards
   if (msgs.length > MAX_MESSAGES) {
-    return res.status(400).json({ error: `Too many messages (max ${MAX_MESSAGES})` });
+    return sendJson(res, 400, { error: `Too many messages (max ${MAX_MESSAGES})` });
   }
   const payloadChars = msgs.reduce((n, m) => n + (m.content?.length || 0), 0);
   if (payloadChars > MAX_PAYLOAD_CHARS) {
-    return res.status(400).json({ error: `Input too long (max ${MAX_PAYLOAD_CHARS} chars)` });
+    return sendJson(res, 400, { error: `Input too long (max ${MAX_PAYLOAD_CHARS} chars)` });
   }
 
   const origin = req.headers.origin || process.env.OPENROUTER_SITE_URL || 'https://eduai-mobile.vercel.app';
@@ -114,7 +138,7 @@ module.exports = async (req, res) => {
       status === 404 ? 'Model not available.' :
       status === 401 ? 'AI key is invalid. Update OPENROUTER_KEY in Vercel.' :
       'AI upstream failed';
-    return res.status(status).json({ error: friendly, detail: String(detail || '').slice(0, 400) });
+    return sendJson(res, status, { error: friendly, detail: String(detail || '').slice(0, 400) });
   }
 
   // ── Streaming (SSE passthrough) ─────────────────────────────
@@ -139,7 +163,7 @@ module.exports = async (req, res) => {
 
   // ── Non-streaming JSON ──────────────────────────────────────
   const data = await upstream.json().catch(() => null);
-  if (!data) return res.status(502).json({ error: 'Invalid upstream response' });
+  if (!data) return sendJson(res, 502, { error: 'Invalid upstream response' });
   const reply = data?.choices?.[0]?.message?.content || '';
-  return res.status(200).json({ reply, model: modelId, raw: data });
+  return sendJson(res, 200, { reply, model: modelId, raw: data });
 };
