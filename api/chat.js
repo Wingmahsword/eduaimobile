@@ -65,6 +65,19 @@ module.exports = async (req, res) => {
   const origin  = req.headers.origin || process.env.OPENROUTER_SITE_URL || 'https://eduai-mobile.vercel.app';
   const appName = process.env.OPENROUTER_APP_NAME || 'EduAI Mobile';
 
+  // TEMP DIAG: prove we reach here and echo back parsed state
+  if (body.__diag === true) {
+    return res.status(200).json({
+      ok: true,
+      msgsCount: msgs.length,
+      charCount,
+      modelId,
+      keyLen: apiKey.length,
+      bodyType: typeof req.body,
+      bodyIsBuffer: Buffer.isBuffer(req.body),
+    });
+  }
+
   // 25s abort — leaves 5s of 30s maxDuration for response serialisation.
   const controller = new AbortController();
   const abortTimer = setTimeout(() => controller.abort(), 25_000);
