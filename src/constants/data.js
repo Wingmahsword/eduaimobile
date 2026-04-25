@@ -1,4 +1,15 @@
+import { PROMPT_COURSE_META } from './promptCourse';
+
 export const COURSES = [
+  {
+    ...PROMPT_COURSE_META,
+    instructor: 'EduAI Academy',
+    category: 'Prompt Engineering',
+    level: 'Beginner → Pro',
+    duration: '12 weeks · 48 lessons',
+    price: 149,
+    description: PROMPT_COURSE_META.description,
+  },
   { id: 'caltech_cs156',   title: 'Learning from Data',                      instructor: 'Caltech (Yaser Abu-Mostafa)', category: 'Machine Learning',   level: 'Beginner',     duration: '18 lectures',   price: 110, description: 'Introductory ML covering VC Dimension, bias-variance tradeoff, SVMs, kernels, and fundamental learning principles.', url: 'https://www.youtube.com/playlist?list=PLD63A284B7615313A' },
   { id: 'stanford_cs229',  title: 'CS229: Machine Learning',                 instructor: 'Stanford University',         category: 'Machine Learning',   level: 'Intermediate', duration: '20+ lectures',  price: 199, description: "Stanford's legendary ML course: linear regression, SVMs, kernels, decision trees, neural networks, and debugging ML models.", url: 'https://www.youtube.com/playlist?list=PLoROMvodv4rMiGQp3WXShtMGgzqpfVfbU' },
   { id: 'tubingen_intro',  title: 'Introduction to Machine Learning',        instructor: 'University of Tübingen',       category: 'Machine Learning',   level: 'Beginner',     duration: 'Full semester', price: 129, description: 'Regression, classification, optimization, regularization, clustering, and dimensionality reduction from first principles.', url: 'https://www.youtube.com/playlist?list=PL05umP7R6ij35ShKLDqccJSDntugY4FQT' },

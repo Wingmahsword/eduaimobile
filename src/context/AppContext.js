@@ -13,6 +13,8 @@ export function AppProvider({ children, userId }) {
   const [cmsReels, setCmsReels] = useState(REELS);
   const [reelsStatus, setReelsStatus] = useState('loading'); // loading | ready | error
   const [coins, setCoins] = useState(100);
+  const [completedLessons, setCompletedLessons] = useState([]);
+  const [quizScores, setQuizScores] = useState({});
   const [messages, setMessages] = useState([
     { role: 'assistant', content: "Hey! I'm your AI learning assistant. Ask me anything about ML, prompt engineering, or deep learning." },
   ]);
@@ -77,6 +79,19 @@ export function AppProvider({ children, userId }) {
         await supabase.from('saved_reels').upsert({ user_id: userId, reel_id: id });
       }
     }
+  };
+
+  const markLessonComplete = (lessonId) => {
+    if (!lessonId) return;
+    setCompletedLessons((prev) => (prev.includes(lessonId) ? prev : [...prev, lessonId]));
+  };
+
+  const submitQuizScore = (quizId, score) => {
+    if (!quizId || typeof score !== 'number') return;
+    setQuizScores((prev) => {
+      const best = Math.max(prev[quizId] ?? 0, score);
+      return { ...prev, [quizId]: best };
+    });
   };
 
   const enrollCourse = async (id) => {
@@ -182,7 +197,11 @@ export function AppProvider({ children, userId }) {
   const reels = cmsReels.map((r) => ({ ...r, liked: likedReels.includes(r.id), saved: savedReels.includes(r.id) }));
 
   return (
-    <AppContext.Provider value={{ courses, reels, reelsStatus, coins, messages, enrollCourse, toggleLike, toggleSave, sendMessage }}>
+    <AppContext.Provider value={{
+      courses, reels, reelsStatus, coins, messages,
+      enrollCourse, toggleLike, toggleSave, sendMessage,
+      completedLessons, quizScores, markLessonComplete, submitQuizScore,
+    }}>
       {children}
     </AppContext.Provider>
   );

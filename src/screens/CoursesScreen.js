@@ -1,591 +1,355 @@
 import React, { useMemo, useState } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, Pressable, TextInput,
-  Linking, Modal, ScrollView, Dimensions, Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView, AnimatePresence } from 'moti';
+import { MotiView } from 'moti';
+import GlassCard from '../components/GlassCard';
 import ScalePressable from '../components/ScalePressable';
+import { colors, spacing, radius, typography } from '../constants/theme';
 import { CATEGORIES } from '../constants/data';
+import { PROMPT_COURSE_ID } from '../constants/promptCourse';
 import { useApp } from '../context/AppContext';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const GUTTER = 14;
-const CARD_W = (SCREEN_W - GUTTER * 3) / 2;
-const IS_WEB = Platform.OS === 'web';
-
-/* ─── Palette (violet / teal glass per spec) ─────────────────────── */
-const T = {
-  bg:          '#0a0a0f',
-  glassBg:     'rgba(255,255,255,0.04)',
-  glassBorder: 'rgba(255,255,255,0.08)',
-  glassBorderH:'rgba(255,255,255,0.15)',
-  accent:      '#7c6dfa',
-  teal:        '#5eead4',
-  glow:        'rgba(124,109,250,0.3)',
-  text:        '#f0f0ff',
-  textSub:     'rgba(240,240,255,0.55)',
-  textMuted:   'rgba(240,240,255,0.30)',
-};
-
-/* Each category gets its own subtle hue in the violet↔teal range */
-const CATEGORY_HUE = {
-  'Machine Learning':   { accent: '#7c6dfa', tint: 'rgba(124,109,250,0.10)' },
-  'Deep Learning':      { accent: '#a78bfa', tint: 'rgba(167,139,250,0.10)' },
-  'Generative AI':      { accent: '#f472b6', tint: 'rgba(244,114,182,0.10)' },
-  'Prompt Engineering': { accent: '#5eead4', tint: 'rgba(94,234,212,0.10)' },
-  'AI Applications':    { accent: '#38bdf8', tint: 'rgba(56,189,248,0.10)' },
-};
-const hueFor = (cat) => CATEGORY_HUE[cat] || { accent: T.accent, tint: 'rgba(124,109,250,0.10)' };
-
-/* ─── Glass primitive ────────────────────────────────────────────── */
-function Glass({ style, intensity = 24, children }) {
-  if (IS_WEB) {
-    return (
-      <View
-        style={[
-          {
-            backgroundColor: T.glassBg,
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderColor: T.glassBorder,
-            borderWidth: 1,
-          },
-          style,
-        ]}
-      >
-        {children}
-      </View>
-    );
-  }
-  return (
-    <BlurView
-      intensity={intensity}
-      tint="dark"
-      style={[{ borderColor: T.glassBorder, borderWidth: 1, overflow: 'hidden' }, style]}
-    >
-      {children}
-    </BlurView>
-  );
-}
-
-/* ─── Course card — glass minimal with hue accent ────────────────── */
-function CourseCard({ item, onPress, index }) {
-  const { accent, tint } = hueFor(item.category);
+function FeaturedCourseHero({ course, onPress, onEnroll, progress }) {
   return (
     <MotiView
-      from={{ opacity: 0, translateY: 14 }}
+      from={{ opacity: 0, translateY: 20 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 220, delay: (index % 10) * 28 }}
-      style={{ width: CARD_W }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200 }}
     >
-      <ScalePressable onPress={onPress} scaleDown={0.96} style={S.cardOuter}>
-        <Glass style={S.card}>
-          {/* Soft hue wash */}
-          <LinearGradient
-            colors={[tint, 'transparent']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
+      <ScalePressable onPress={onPress} scaleDown={0.985}>
+        <LinearGradient
+          colors={['rgba(124,109,250,0.32)', 'rgba(94,234,212,0.20)', 'rgba(244,114,182,0.18)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.featuredCard}
+        >
+          <View style={styles.featuredBadgeRow}>
+            <View style={styles.featuredBadge}>
+              <Ionicons name="sparkles" size={11} color="#fff" />
+              <Text style={styles.featuredBadgeText}>FEATURED · NEW</Text>
+            </View>
+            <View style={styles.certBadge}>
+              <Ionicons name="trophy" size={11} color="#FBBF24" />
+              <Text style={styles.certBadgeText}>{course.badge}</Text>
+            </View>
+          </View>
 
-          {/* Accent stripe left */}
-          <View style={[S.stripe, { backgroundColor: accent }]} />
+          <Text style={styles.featuredTitle}>{course.title}</Text>
+          <Text style={styles.featuredSub}>{course.subtitle}</Text>
 
-          {/* Enrolled check */}
-          {item.enrolled && (
-            <View style={[S.enrolledMark, { backgroundColor: T.teal }]}>
-              <Ionicons name="checkmark" size={10} color="#0a0a0f" />
+          <View style={styles.featuredStats}>
+            <View style={styles.featuredStat}>
+              <Text style={styles.featuredStatNum}>48</Text>
+              <Text style={styles.featuredStatLabel}>Lessons</Text>
+            </View>
+            <View style={styles.featuredStatDivider} />
+            <View style={styles.featuredStat}>
+              <Text style={styles.featuredStatNum}>12</Text>
+              <Text style={styles.featuredStatLabel}>Weeks</Text>
+            </View>
+            <View style={styles.featuredStatDivider} />
+            <View style={styles.featuredStat}>
+              <Text style={styles.featuredStatNum}>2+1</Text>
+              <Text style={styles.featuredStatLabel}>Quiz/Cert</Text>
+            </View>
+          </View>
+
+          <View style={styles.featuredFooter}>
+            <View style={styles.priceBlock}>
+              <Text style={styles.priceOriginal}>₹{course.originalPrice}</Text>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceCurrent}>₹{course.price}</Text>
+                <View style={styles.discountChip}>
+                  <Text style={styles.discountText}>98% OFF</Text>
+                </View>
+              </View>
+            </View>
+            <ScalePressable onPress={course.enrolled ? onPress : onEnroll} scaleDown={0.92}>
+              <LinearGradient
+                colors={course.enrolled ? ['#5EEAD4', '#7C6DFA'] : ['#7C6DFA', '#F472B6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.enrollButton}
+              >
+                <Text style={styles.enrollButtonText}>
+                  {course.enrolled ? 'Continue Learning' : 'Enroll · ₹149'}
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color="#fff" />
+              </LinearGradient>
+            </ScalePressable>
+          </View>
+
+          {course.enrolled && (
+            <View style={styles.progressRow}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              </View>
+              <Text style={styles.progressLabel}>{progress}% complete</Text>
             </View>
           )}
 
-          <View style={S.cardInner}>
-            <Text style={[S.cardCategory, { color: accent }]} numberOfLines={1}>
-              {item.category.toUpperCase()}
-            </Text>
-
-            <Text style={S.cardTitle} numberOfLines={3}>{item.title}</Text>
-
-            <Text style={S.cardInstructor} numberOfLines={1}>{item.instructor}</Text>
-
-            <View style={S.cardDivider} />
-
-            <View style={S.cardFooter}>
-              <View style={[S.levelPill, { borderColor: accent + '55' }]}>
-                <Text style={[S.levelText, { color: accent }]}>{item.level}</Text>
-              </View>
-              <Text style={S.price}>₹{item.price}</Text>
-            </View>
+          <View style={styles.guaranteeRow}>
+            <Ionicons name="shield-checkmark" size={13} color="#5EEAD4" />
+            <Text style={styles.guaranteeText}>{course.jobGuarantee}</Text>
           </View>
-        </Glass>
+        </LinearGradient>
       </ScalePressable>
     </MotiView>
   );
 }
 
-/* ─── Filter bottom sheet (popup) ────────────────────────────────── */
-function FilterSheet({ visible, selected, onSelect, onClose }) {
+function CourseCard({ course, index, onPress }) {
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={S.modalRoot}>
-        <Pressable style={S.backdrop} onPress={onClose} />
-        <MotiView
-          from={{ translateY: 420 }}
-          animate={{ translateY: 0 }}
-          transition={{ type: 'spring', damping: 22, stiffness: 280 }}
-          style={S.filterSheet}
-        >
-          <View style={S.handle} />
-
-          <Text style={S.filterTitle}>Filter</Text>
-          <Text style={S.filterSubtitle}>Choose a category</Text>
-
-          <View style={S.filterGrid}>
-            {CATEGORIES.map((cat) => {
-              const active = cat === selected;
-              const { accent } = cat === 'All'
-                ? { accent: T.accent }
-                : hueFor(cat);
-              return (
-                <ScalePressable
-                  key={cat}
-                  onPress={() => { onSelect(cat); onClose(); }}
-                  scaleDown={0.94}
-                  style={[
-                    S.filterChip,
-                    active && {
-                      backgroundColor: accent,
-                      borderColor: accent,
-                    },
-                  ]}
-                >
-                  <Text style={[
-                    S.filterChipText,
-                    active && { color: '#0a0a0f', fontWeight: '700' },
-                  ]}>
-                    {cat}
-                  </Text>
-                </ScalePressable>
-              );
-            })}
+    <MotiView
+      from={{ opacity: 0, translateY: 14 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 220, delay: 60 + index * 30 }}
+    >
+      <ScalePressable onPress={onPress} scaleDown={0.97}>
+        <GlassCard radiusSize={radius.lg} style={styles.courseCard}>
+          <View style={styles.courseCardTop}>
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryText}>{course.category}</Text>
+            </View>
+            <Text style={styles.coursePrice}>₹{course.price}</Text>
           </View>
-
-          <Pressable onPress={onClose} style={S.doneBtn}>
-            <LinearGradient
-              colors={[T.accent, T.teal]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <Text style={S.doneText}>Done</Text>
-          </Pressable>
-        </MotiView>
-      </View>
-    </Modal>
+          <Text style={styles.courseTitle} numberOfLines={2}>{course.title}</Text>
+          <Text style={styles.courseInstructor} numberOfLines={1}>{course.instructor}</Text>
+          <View style={styles.courseMeta}>
+            <View style={styles.metaItem}>
+              <Ionicons name="bar-chart-outline" size={11} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.metaText}>{course.level}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.metaText}>{course.duration}</Text>
+            </View>
+          </View>
+        </GlassCard>
+      </ScalePressable>
+    </MotiView>
   );
 }
 
-/* ─── Main Screen ────────────────────────────────────────────────── */
-export default function CoursesScreen() {
-  const { courses, enrollCourse } = useApp();
-  const [category, setCategory] = useState('All');
-  const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [filterOpen, setFilterOpen] = useState(false);
+export default function CoursesScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+  const { courses, completedLessons, enrollCourse } = useApp();
+  const [filter, setFilter] = useState('All');
+  const [showFilter, setShowFilter] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return courses.filter((c) => {
-      const matchCat = category === 'All' || c.category === category;
-      const matchQ = !q
-        || c.title.toLowerCase().includes(q)
-        || c.instructor.toLowerCase().includes(q);
-      return matchCat && matchQ;
-    });
-  }, [courses, category, query]);
+  const isCompact = width < 390;
+  const featured = useMemo(() => courses.find((c) => c.id === PROMPT_COURSE_ID), [courses]);
+  const otherCourses = useMemo(() => {
+    const rest = courses.filter((c) => c.id !== PROMPT_COURSE_ID);
+    return filter === 'All' ? rest : rest.filter((c) => c.category === filter);
+  }, [courses, filter]);
+
+  const progress = featured ? Math.round((completedLessons.length / (featured.totalLessons || 48)) * 100) : 0;
+
+  const goToDetail = () => {
+    navigation.navigate('CourseDetail', { courseId: PROMPT_COURSE_ID });
+  };
+
+  const handleEnroll = async () => {
+    if (!featured.enrolled) await enrollCourse(featured.id);
+    goToDetail();
+  };
 
   return (
-    <SafeAreaView style={S.root} edges={['top']}>
-      {/* subtle top-center violet glow */}
-      <LinearGradient
-        colors={['rgba(124,109,250,0.08)', 'transparent']}
-        style={S.topGlow}
-        pointerEvents="none"
-      />
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <View style={[styles.header, { paddingHorizontal: isCompact ? spacing.md : spacing.lg }]}>
+        <Text style={styles.heading}>Courses</Text>
+        <Pressable
+          onPress={() => setShowFilter((v) => !v)}
+          style={styles.filterBtn}
+          hitSlop={10}
+        >
+          <Ionicons name={showFilter ? 'close' : 'options-outline'} size={20} color="#fff" />
+        </Pressable>
+      </View>
 
-      {/* ── Header ── */}
-      <MotiView
-        from={{ opacity: 0, translateY: -10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 240 }}
-        style={S.header}
-      >
-        <View style={S.titleRow}>
-          <Text style={S.title}>Explore</Text>
-          <Text style={S.subtitle}>
-            {filtered.length} course{filtered.length === 1 ? '' : 's'}
-          </Text>
-        </View>
+      {showFilter && (
+        <MotiView
+          from={{ opacity: 0, translateY: -8 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 180 }}
+          style={styles.filterPanel}
+        >
+          <FlatList
+            horizontal
+            data={CATEGORIES}
+            keyExtractor={(c) => c}
+            contentContainerStyle={styles.filterRow}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const active = item === filter;
+              return (
+                <ScalePressable
+                  onPress={() => { setFilter(item); setShowFilter(false); }}
+                  scaleDown={0.92}
+                >
+                  <View style={[styles.filterChip, active && styles.filterChipActive]}>
+                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{item}</Text>
+                  </View>
+                </ScalePressable>
+              );
+            }}
+          />
+        </MotiView>
+      )}
 
-        <View style={S.searchRow}>
-          <Glass style={S.searchWrap}>
-            <Ionicons name="search" size={15} color={T.textSub} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search courses, instructors…"
-              placeholderTextColor={T.textMuted}
-              style={S.searchInput}
-            />
-            {query.length > 0 && (
-              <Pressable onPress={() => setQuery('')} hitSlop={10}>
-                <Ionicons name="close-circle" size={16} color={T.textSub} />
-              </Pressable>
-            )}
-          </Glass>
-
-          {/* Filter icon button */}
-          <ScalePressable onPress={() => setFilterOpen(true)} scaleDown={0.9}>
-            <Glass style={S.filterBtn}>
-              <Ionicons name="options-outline" size={20} color={T.text} />
-              {category !== 'All' && (
-                <View style={[S.filterDot, { backgroundColor: hueFor(category).accent }]} />
-              )}
-            </Glass>
-          </ScalePressable>
-        </View>
-
-        {/* Active filter pill (removable) */}
-        <AnimatePresence>
-          {category !== 'All' && (
-            <MotiView
-              from={{ opacity: 0, translateY: -6 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              exit={{ opacity: 0, translateY: -6 }}
-              transition={{ type: 'timing', duration: 200 }}
-              style={S.activePillWrap}
-            >
-              <Pressable
-                onPress={() => setCategory('All')}
-                style={[
-                  S.activePill,
-                  { borderColor: hueFor(category).accent + '77' },
-                ]}
-              >
-                <Text style={[S.activePillText, { color: hueFor(category).accent }]}>
-                  {category}
-                </Text>
-                <Ionicons name="close" size={13} color={hueFor(category).accent} />
-              </Pressable>
-            </MotiView>
-          )}
-        </AnimatePresence>
-      </MotiView>
-
-      {/* ── Grid ── */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(i) => i.id}
-        numColumns={2}
-        contentContainerStyle={S.grid}
-        columnWrapperStyle={S.gridRow}
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: isCompact ? spacing.md : spacing.lg }]}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={S.emptyWrap}>
-            <Ionicons name="sparkles-outline" size={44} color={T.textMuted} />
-            <Text style={S.emptyText}>No courses match your filters</Text>
-          </View>
-        }
-        renderItem={({ item, index }) => (
-          <CourseCard item={item} index={index} onPress={() => setSelected(item)} />
-        )}
-      />
-
-      {/* ── Filter popup ── */}
-      <FilterSheet
-        visible={filterOpen}
-        selected={category}
-        onSelect={setCategory}
-        onClose={() => setFilterOpen(false)}
-      />
-
-      {/* ── Detail sheet ── */}
-      <Modal
-        visible={!!selected}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSelected(null)}
       >
-        <View style={S.modalRoot}>
-          <Pressable style={S.backdrop} onPress={() => setSelected(null)} />
-          <MotiView
-            from={{ translateY: 500 }}
-            animate={{ translateY: 0 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 280 }}
-            style={S.detailSheet}
-          >
-            {selected && (
-              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-                <View style={S.handle} />
+        {featured && (
+          <View style={styles.featuredWrap}>
+            <FeaturedCourseHero
+              course={featured}
+              progress={progress}
+              onPress={goToDetail}
+              onEnroll={handleEnroll}
+            />
+          </View>
+        )}
 
-                <View style={S.detailBanner}>
-                  <LinearGradient
-                    colors={[hueFor(selected.category).tint, 'transparent']}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={[S.stripe, { backgroundColor: hueFor(selected.category).accent }]} />
-                  <View style={{ paddingLeft: 24, paddingVertical: 24 }}>
-                    <Text style={[S.detailCategory, { color: hueFor(selected.category).accent }]}>
-                      {selected.category.toUpperCase()}
-                    </Text>
-                    <Text style={S.detailTitle} numberOfLines={3}>{selected.title}</Text>
-                    <Text style={S.detailInstructor}>{selected.instructor}</Text>
-                  </View>
-                </View>
-
-                <View style={S.sheetBody}>
-                  <View style={S.metaRow}>
-                    {[selected.level, selected.duration, `₹${selected.price}`].map((v) => (
-                      <View key={v} style={S.metaChip}>
-                        <Text style={S.metaText}>{v}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <Text style={S.sheetDesc}>{selected.description}</Text>
-                  <Text style={S.sheetNote}>DAIR.AI · Mentor Board · Hiring Partners</Text>
-
-                  <View style={S.sheetActions}>
-                    <ScalePressable
-                      onPress={() => Linking.openURL(selected.url)}
-                      style={S.watchBtn}
-                      scaleDown={0.94}
-                    >
-                      <Ionicons name="logo-youtube" size={17} color={T.text} />
-                      <Text style={S.watchText}>Watch Free</Text>
-                    </ScalePressable>
-                    <ScalePressable
-                      onPress={() => enrollCourse(selected.id)}
-                      style={[S.enrollBtn, selected.enrolled && S.enrolledBtn]}
-                      scaleDown={0.94}
-                    >
-                      {!selected.enrolled && (
-                        <LinearGradient
-                          colors={[T.accent, T.teal]}
-                          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                          style={StyleSheet.absoluteFill}
-                        />
-                      )}
-                      <Ionicons
-                        name={selected.enrolled ? 'checkmark' : 'flash'}
-                        size={17}
-                        color={selected.enrolled ? T.teal : '#0a0a0f'}
-                      />
-                      <Text style={[
-                        S.enrollText,
-                        { color: selected.enrolled ? T.teal : '#0a0a0f' },
-                      ]}>
-                        {selected.enrolled ? 'Enrolled' : `Enroll · ₹${selected.price}`}
-                      </Text>
-                    </ScalePressable>
-                  </View>
-                </View>
-              </ScrollView>
-            )}
-          </MotiView>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>More learning paths</Text>
+          {filter !== 'All' && (
+            <Pressable onPress={() => setFilter('All')} hitSlop={6}>
+              <Text style={styles.clearLink}>Clear filter</Text>
+            </Pressable>
+          )}
         </View>
-      </Modal>
+
+        <View style={styles.coursesList}>
+          {otherCourses.map((c, i) => (
+            <CourseCard
+              key={c.id}
+              course={c}
+              index={i}
+              onPress={() => navigation.navigate('Home')}
+            />
+          ))}
+          {otherCourses.length === 0 && (
+            <Text style={styles.emptyText}>No courses match this filter yet.</Text>
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ─── Styles ─────────────────────────────────────────────────────── */
-const S = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
-  topGlow: { position: 'absolute', left: 0, right: 0, top: 0, height: 240 },
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000' },
 
-  /* Header */
-  header: { paddingHorizontal: GUTTER, paddingTop: 8, paddingBottom: 10, gap: 12 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  title: {
-    color: T.text, fontSize: 30, fontWeight: '700',
-    letterSpacing: -1.2,
-  },
-  subtitle: { color: T.textMuted, fontSize: 12, fontWeight: '500', marginBottom: 6 },
-
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  searchWrap: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderRadius: 14, overflow: 'hidden',
-  },
-  searchInput: {
-    flex: 1, color: T.text, fontSize: 14, fontWeight: '400',
-    ...(IS_WEB ? { outlineStyle: 'none' } : null),
-  },
-  filterBtn: {
-    width: 48, height: 48, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  filterDot: {
-    position: 'absolute', top: 9, right: 9,
-    width: 8, height: 8, borderRadius: 4,
-  },
-
-  activePillWrap: { flexDirection: 'row' },
-  activePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 999, borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-  },
-  activePillText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.2 },
-
-  /* Grid */
-  grid: { paddingHorizontal: GUTTER, paddingBottom: 140, gap: GUTTER },
-  gridRow: { gap: GUTTER },
-
-  /* Card */
-  cardOuter: { borderRadius: 20, overflow: 'hidden' },
-  card: {
-    borderRadius: 20, overflow: 'hidden',
-    minHeight: 196,
-  },
-  stripe: {
-    position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
-  },
-  enrolledMark: {
-    position: 'absolute', top: 10, right: 10,
-    width: 20, height: 20, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center',
-    zIndex: 2,
-  },
-  cardInner: {
-    padding: 14, paddingLeft: 16,
-    flex: 1, justifyContent: 'space-between',
-    gap: 6,
-  },
-  cardCategory: {
-    fontSize: 9.5, fontWeight: '700',
-    letterSpacing: 1.4,
-  },
-  cardTitle: {
-    color: T.text, fontSize: 14, lineHeight: 18,
-    fontWeight: '600', letterSpacing: -0.3,
-    marginTop: 4,
-  },
-  cardInstructor: {
-    color: T.textSub, fontSize: 11, fontWeight: '400',
-    marginTop: 2,
-  },
-  cardDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: T.glassBorder,
-    marginVertical: 8,
-  },
-  cardFooter: {
+  header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 4, paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  levelPill: {
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 999, borderWidth: 1,
-  },
-  levelText: { fontSize: 8.5, fontWeight: '700', letterSpacing: 0.8 },
-  price: {
-    color: T.text, fontSize: 14, fontWeight: '600',
-    letterSpacing: -0.3,
+  heading: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.6, fontFamily: typography.family },
+  filterBtn: {
+    width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
 
-  /* Empty state */
-  emptyWrap: {
-    paddingTop: 80, alignItems: 'center', gap: 12, width: SCREEN_W,
-  },
-  emptyText: { color: T.textSub, fontSize: 13, fontWeight: '500' },
-
-  /* Modals (shared) */
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
-  handle: {
-    alignSelf: 'center', width: 42, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 12, marginBottom: 4,
-  },
-
-  /* Filter sheet */
-  filterSheet: {
-    backgroundColor: '#0f0f1a',
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    borderTopWidth: 1, borderColor: T.glassBorder,
-    paddingHorizontal: 20, paddingBottom: 28,
-  },
-  filterTitle: {
-    color: T.text, fontSize: 22, fontWeight: '700',
-    letterSpacing: -0.6, marginTop: 14,
-  },
-  filterSubtitle: { color: T.textSub, fontSize: 13, marginTop: 4, marginBottom: 18 },
-  filterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  filterPanel: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  filterRow: { paddingHorizontal: spacing.lg, paddingVertical: 12, gap: 8 },
   filterChip: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1, borderColor: T.glassBorder,
-    backgroundColor: T.glassBg,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  filterChipText: { color: T.textSub, fontSize: 13, fontWeight: '500' },
-  doneBtn: {
-    marginTop: 24, height: 50, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  doneText: { color: '#0a0a0f', fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
+  filterChipActive: { backgroundColor: 'rgba(124,109,250,0.28)', borderColor: 'rgba(124,109,250,0.5)' },
+  filterChipText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' },
+  filterChipTextActive: { color: '#fff' },
 
-  /* Detail sheet */
-  detailSheet: {
-    backgroundColor: '#0f0f1a',
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: '92%',
-    borderTopWidth: 1, borderColor: T.glassBorder,
-  },
-  detailBanner: {
-    marginTop: 10, marginHorizontal: 16,
-    borderRadius: 18, overflow: 'hidden',
-    borderWidth: 1, borderColor: T.glassBorder,
-    backgroundColor: T.glassBg,
-  },
-  detailCategory: {
-    fontSize: 10, fontWeight: '700',
-    letterSpacing: 1.6, marginBottom: 10,
-  },
-  detailTitle: {
-    color: T.text, fontSize: 24, fontWeight: '700',
-    letterSpacing: -0.8, lineHeight: 28,
-  },
-  detailInstructor: { color: T.textSub, fontSize: 13, marginTop: 8, fontWeight: '400' },
+  scrollContent: { paddingTop: 16, paddingBottom: 140 },
 
-  sheetBody: { padding: 24 },
-  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  metaChip: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 999, borderWidth: 1,
-    borderColor: T.glassBorder, backgroundColor: T.glassBg,
+  featuredWrap: { marginBottom: 24 },
+  featuredCard: {
+    borderRadius: radius.xl, padding: 20, gap: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  metaText: { color: T.text, fontSize: 11, fontWeight: '600' },
-  sheetDesc: { color: T.textSub, marginTop: 18, lineHeight: 20, fontSize: 13, fontWeight: '400' },
-  sheetNote: { color: T.textMuted, marginTop: 14, fontSize: 10.5, fontWeight: '600', letterSpacing: 1.2 },
-  sheetActions: { flexDirection: 'row', gap: 12, marginTop: 22, marginBottom: 12 },
-  watchBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: T.glassBg, borderWidth: 1, borderColor: T.glassBorder,
+  featuredBadgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  featuredBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill,
+    backgroundColor: 'rgba(124,109,250,0.4)',
+    borderWidth: 1, borderColor: 'rgba(124,109,250,0.6)',
   },
-  watchText: { color: T.text, fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
-  enrollBtn: {
-    flex: 1.4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 14, borderRadius: 12, overflow: 'hidden',
+  featuredBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  certBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill,
+    backgroundColor: 'rgba(251,191,36,0.18)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)',
   },
-  enrolledBtn: {
-    backgroundColor: 'rgba(94,234,212,0.12)',
-    borderWidth: 1, borderColor: 'rgba(94,234,212,0.4)',
+  certBadgeText: { color: '#FBBF24', fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
+
+  featuredTitle: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.6, lineHeight: 28 },
+  featuredSub: { color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 18 },
+
+  featuredStats: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4,
+    paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
-  enrollText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  featuredStat: { flex: 1, alignItems: 'center' },
+  featuredStatNum: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  featuredStatLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700', marginTop: 2, letterSpacing: 0.5 },
+  featuredStatDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.12)' },
+
+  featuredFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  priceBlock: { gap: 2 },
+  priceOriginal: { color: 'rgba(255,255,255,0.45)', fontSize: 11, textDecorationLine: 'line-through' },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  priceCurrent: { color: '#fff', fontSize: 22, fontWeight: '900' },
+  discountChip: {
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
+    backgroundColor: '#EF4444',
+  },
+  discountText: { color: '#fff', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  enrollButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 11, borderRadius: radius.pill,
+  },
+  enrollButtonText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+
+  progressRow: { gap: 6 },
+  progressBar: { height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.12)' },
+  progressFill: { height: '100%', backgroundColor: '#5EEAD4' },
+  progressLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700' },
+
+  guaranteeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  guaranteeText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' },
+
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: { color: '#fff', fontSize: 14, fontWeight: '800', letterSpacing: 0.3 },
+  clearLink: { color: '#7C6DFA', fontSize: 12, fontWeight: '700' },
+
+  coursesList: { gap: 10 },
+  courseCard: { padding: 14, gap: 8 },
+  courseCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  categoryPill: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill,
+    backgroundColor: 'rgba(124,109,250,0.18)',
+    borderWidth: 1, borderColor: 'rgba(124,109,250,0.32)',
+  },
+  categoryText: { color: '#A28DFB', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  coursePrice: { color: '#5EEAD4', fontSize: 14, fontWeight: '900' },
+
+  courseTitle: { color: '#fff', fontSize: 15, fontWeight: '800', lineHeight: 19 },
+  courseInstructor: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '600' },
+  courseMeta: { flexDirection: 'row', gap: 14, marginTop: 4 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '600' },
+
+  emptyText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center', paddingVertical: 32 },
 });

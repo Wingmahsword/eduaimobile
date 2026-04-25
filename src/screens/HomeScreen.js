@@ -8,6 +8,7 @@ import { MotiView } from 'moti';
 import GlassCard from '../components/GlassCard';
 import ScalePressable from '../components/ScalePressable';
 import { colors, spacing, radius, typography } from '../constants/theme';
+import { PROMPT_COURSE_ID } from '../constants/promptCourse';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -243,7 +244,11 @@ export default function HomeScreen({ navigation }) {
             item={item}
             index={index}
             postHeight={postHeight}
-            onPress={() => navigation.navigate('Courses')}
+            onPress={() =>
+              item.id === PROMPT_COURSE_ID
+                ? navigation.navigate('CourseDetail', { courseId: item.id })
+                : navigation.navigate('Courses')
+            }
           />
         ))}
 
