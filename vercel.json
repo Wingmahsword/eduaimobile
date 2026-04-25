@@ -1,13 +1,9 @@
 {
-  "functions": {
-    "api/chat.js": { "maxDuration": 30 }
-  },
+  "buildCommand": "cd web && npm install && npm run build",
+  "outputDirectory": "web/dist",
+  "installCommand": "echo 'skip root install'",
+  "framework": null,
   "rewrites": [
-    { "source": "/_expo/:path*",  "destination": "/dist/_expo/:path*" },
-    { "source": "/assets/:path*", "destination": "/dist/assets/:path*" },
-    { "source": "/favicon.ico",   "destination": "/dist/favicon.ico" },
-    { "source": "/cms",           "destination": "/cms/index.html" },
-    { "source": "/cms/",          "destination": "/cms/index.html" },
-    { "source": "/((?!api/).*)",  "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
