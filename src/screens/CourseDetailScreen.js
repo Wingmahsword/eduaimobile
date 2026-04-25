@@ -6,13 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import ScalePressable from '../components/ScalePressable';
 import { spacing, radius, typography } from '../constants/theme';
-import {
-  PROMPT_COURSE_META,
-  PROMPT_COURSE_MONTHS,
-  PROMPT_COURSE_QUIZZES,
-  PROMPT_COURSE_ACHIEVEMENTS,
-  LESSON_TYPES,
-} from '../constants/promptCourse';
+import { LESSON_TYPES, getCourseBundle, COMPREHENSIVE_COURSE_IDS } from '../constants/comprehensiveCourses';
 import { useApp } from '../context/AppContext';
 
 function ProgressRing({ progress }) {
@@ -77,26 +71,48 @@ function LessonRow({ lesson, completed, onPress }) {
   );
 }
 
-export default function CourseDetailScreen({ navigation }) {
+export default function CourseDetailScreen({ route, navigation }) {
   const { completedLessons, quizScores, enrollCourse, courses } = useApp();
   const [openWeek, setOpenWeek] = useState('1-1');
 
+  // Resolve course bundle from route param (fallback: first registered course)
+  const courseId = route?.params?.courseId || COMPREHENSIVE_COURSE_IDS[0];
+  const bundle = getCourseBundle(courseId);
+
   const enrolled = useMemo(
-    () => courses.find((c) => c.id === PROMPT_COURSE_META.id)?.enrolled,
-    [courses],
+    () => courses.find((c) => c.id === courseId)?.enrolled,
+    [courses, courseId],
   );
 
-  const totalLessons = PROMPT_COURSE_META.totalLessons;
-  const progress = Math.round((completedLessons.length / totalLessons) * 100);
-  const earned = PROMPT_COURSE_ACHIEVEMENTS.filter((a) =>
+  if (!bundle) {
+    return (
+      <SafeAreaView style={styles.root} edges={['top']}>
+        <View style={styles.topBar}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={22} color="#fff" />
+          </Pressable>
+          <Text style={styles.topTitle}>Course not found</Text>
+          <View style={{ width: 36 }} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { meta, months, quizzes, achievements, accent, secondary } = bundle;
+  const totalLessons = meta.totalLessons;
+  const courseLessons = completedLessons.filter((l) =>
+    months.some((m) => m.weeks.some((w) => w.lessons.some((ll) => ll.id === l))),
+  );
+  const progress = Math.round((courseLessons.length / totalLessons) * 100);
+  const earned = achievements.filter((a) =>
     a.check({ completedLessons, quizScores }),
   );
 
   const openLesson = (lesson) => {
-    navigation.navigate('Lesson', { lessonId: lesson.id });
+    navigation.navigate('Lesson', { lessonId: lesson.id, courseId });
   };
   const openQuiz = (quizId) => {
-    navigation.navigate('Quiz', { quizId });
+    navigation.navigate('Quiz', { quizId, courseId });
   };
 
   return (
@@ -118,32 +134,32 @@ export default function CourseDetailScreen({ navigation }) {
           transition={{ type: 'spring', damping: 18, stiffness: 200 }}
         >
           <LinearGradient
-            colors={['rgba(124,109,250,0.32)', 'rgba(94,234,212,0.18)', 'rgba(244,114,182,0.18)']}
+            colors={[accent + '52', secondary + '30', 'rgba(244,114,182,0.18)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
             <View style={styles.heroBadgeRow}>
-              <View style={styles.heroBadge}>
+              <View style={[styles.heroBadge, { backgroundColor: accent + '66', borderColor: accent + 'AA' }]}>
                 <Ionicons name="ribbon" size={11} color="#fff" />
-                <Text style={styles.heroBadgeText}>{PROMPT_COURSE_META.badge}</Text>
+                <Text style={styles.heroBadgeText}>{meta.badge}</Text>
               </View>
-              <Text style={styles.heroPrice}>₹{PROMPT_COURSE_META.price}</Text>
+              <Text style={[styles.heroPrice, { color: secondary }]}>₹{meta.price}</Text>
             </View>
-            <Text style={styles.heroTitle}>{PROMPT_COURSE_META.title}</Text>
-            <Text style={styles.heroSub}>{PROMPT_COURSE_META.subtitle}</Text>
+            <Text style={styles.heroTitle}>{meta.title}</Text>
+            <Text style={styles.heroSub}>{meta.subtitle}</Text>
 
             {enrolled ? (
               <ProgressRing progress={progress} />
             ) : (
-              <ScalePressable onPress={() => enrollCourse(PROMPT_COURSE_META.id)} scaleDown={0.96}>
+              <ScalePressable onPress={() => enrollCourse(meta.id)} scaleDown={0.96}>
                 <LinearGradient
-                  colors={['#7C6DFA', '#F472B6']}
+                  colors={[accent, '#F472B6']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.heroEnroll}
                 >
-                  <Text style={styles.heroEnrollText}>Enroll Now · ₹149</Text>
+                  <Text style={styles.heroEnrollText}>Enroll Now · ₹{meta.price}</Text>
                   <Ionicons name="arrow-forward" size={16} color="#fff" />
                 </LinearGradient>
               </ScalePressable>
@@ -152,30 +168,37 @@ export default function CourseDetailScreen({ navigation }) {
         </MotiView>
 
         {/* Stats */}
-        <View style={styles.statsRow}>
-          <StatTile value={`${completedLessons.length}/${totalLessons}`} label="Lessons" icon="book" color="#7C6DFA" />
-          <StatTile value={`${earned.length}/${PROMPT_COURSE_ACHIEVEMENTS.length}`} label="Achievements" icon="ribbon" color="#FBBF24" />
-          <StatTile
-            value={quizScores.quiz1 != null ? `${quizScores.quiz1}%` : '—'}
-            label="Quiz 1"
-            icon="flash"
-            color="#5EEAD4"
-          />
-          <StatTile
-            value={quizScores.certification != null ? `${quizScores.certification}%` : '🔒'}
-            label="Cert"
-            icon="trophy"
-            color="#F472B6"
-          />
-        </View>
+        {(() => {
+          const quizIds = Object.keys(quizzes || {}).filter((q) => q !== Object.keys(quizzes).find((id) => quizzes[id].jobGuaranteeScore));
+          const certId = Object.keys(quizzes || {}).find((id) => quizzes[id].jobGuaranteeScore);
+          const firstQuizId = quizIds[0];
+          return (
+            <View style={styles.statsRow}>
+              <StatTile value={`${courseLessons.length}/${totalLessons}`} label="Lessons" icon="book" color={accent} />
+              <StatTile value={`${earned.length}/${achievements.length}`} label="Awards" icon="ribbon" color="#FBBF24" />
+              <StatTile
+                value={firstQuizId && quizScores[firstQuizId] != null ? `${quizScores[firstQuizId]}%` : '—'}
+                label="Quiz 1"
+                icon="flash"
+                color={secondary}
+              />
+              <StatTile
+                value={certId && quizScores[certId] != null ? `${quizScores[certId]}%` : '🔒'}
+                label="Cert"
+                icon="trophy"
+                color="#F472B6"
+              />
+            </View>
+          );
+        })()}
 
         {/* Highlights */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What you'll get</Text>
           <View style={styles.highlightList}>
-            {PROMPT_COURSE_META.highlights.map((h) => (
+            {meta.highlights.map((h) => (
               <View key={h} style={styles.highlightRow}>
-                <Ionicons name="checkmark-circle" size={16} color="#5EEAD4" />
+                <Ionicons name="checkmark-circle" size={16} color={secondary} />
                 <Text style={styles.highlightText}>{h}</Text>
               </View>
             ))}
@@ -185,7 +208,7 @@ export default function CourseDetailScreen({ navigation }) {
         {/* Curriculum */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Curriculum</Text>
-          {PROMPT_COURSE_MONTHS.map((month) => {
+          {months.map((month) => {
             const monthLessons = month.weeks.flatMap((w) => w.lessons);
             const monthDone = monthLessons.filter((l) => completedLessons.includes(l.id)).length;
             return (
@@ -241,15 +264,15 @@ export default function CourseDetailScreen({ navigation }) {
 
                 {month.quizAfter && (
                   <ScalePressable onPress={() => openQuiz(month.quizAfter)} scaleDown={0.97}>
-                    <View style={styles.quizBanner}>
+                    <View style={[styles.quizBanner, { backgroundColor: accent + '1F', borderColor: accent + '52' }]}>
                       <View style={styles.quizBannerLeft}>
-                        <Ionicons name="game-controller" size={20} color="#7C6DFA" />
+                        <Ionicons name="game-controller" size={20} color={accent} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.quizBannerTitle}>{month.quizTitle}</Text>
                           <Text style={styles.quizBannerSub}>10 questions · pass with 60%</Text>
                         </View>
                       </View>
-                      <Text style={styles.quizBannerScore}>
+                      <Text style={[styles.quizBannerScore, { color: accent }]}>
                         {quizScores[month.quizAfter] != null
                           ? `${quizScores[month.quizAfter]}% ✓`
                           : 'Start →'}
@@ -262,32 +285,38 @@ export default function CourseDetailScreen({ navigation }) {
           })}
 
           {/* Final cert */}
-          <ScalePressable onPress={() => openQuiz('certification')} scaleDown={0.97}>
-            <LinearGradient
-              colors={['#F59E0B', '#EF4444', '#7C6DFA']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.certWrap}
-            >
-              <View style={styles.certInner}>
-                <Ionicons name="trophy" size={26} color="#FBBF24" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.certTitle}>Certification Exam</Text>
-                  <Text style={styles.certSub}>50 questions · Pass: 70% · Job Guarantee: 89%+</Text>
-                </View>
-                <Text style={styles.certScore}>
-                  {quizScores.certification != null ? `${quizScores.certification}%` : '🔒'}
-                </Text>
-              </View>
-            </LinearGradient>
-          </ScalePressable>
+          {(() => {
+            const certId = Object.keys(quizzes || {}).find((id) => quizzes[id].jobGuaranteeScore);
+            if (!certId) return null;
+            return (
+              <ScalePressable onPress={() => openQuiz(certId)} scaleDown={0.97}>
+                <LinearGradient
+                  colors={['#F59E0B', '#EF4444', accent]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.certWrap}
+                >
+                  <View style={styles.certInner}>
+                    <Ionicons name="trophy" size={26} color="#FBBF24" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.certTitle}>{quizzes[certId].title}</Text>
+                      <Text style={styles.certSub}>50 questions · Pass: 70% · Job Guarantee: 89%+</Text>
+                    </View>
+                    <Text style={styles.certScore}>
+                      {quizScores[certId] != null ? `${quizScores[certId]}%` : '🔒'}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </ScalePressable>
+            );
+          })()}
         </View>
 
         {/* Achievements */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievement tracker</Text>
           <View style={styles.achGrid}>
-            {PROMPT_COURSE_ACHIEVEMENTS.map((a) => (
+            {achievements.map((a) => (
               <AchievementChip
                 key={a.id}
                 a={a}

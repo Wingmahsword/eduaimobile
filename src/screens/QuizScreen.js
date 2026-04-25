@@ -6,13 +6,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import ScalePressable from '../components/ScalePressable';
 import { spacing, radius, typography } from '../constants/theme';
-import { PROMPT_COURSE_QUIZZES } from '../constants/promptCourse';
+import { getCourseBundle, findCourseForQuiz } from '../constants/comprehensiveCourses';
 import { useApp } from '../context/AppContext';
 
-function ResultView({ quiz, score, correct, total, onClose, onRetry }) {
+function ResultView({ quiz, courseTitle, score, correct, total, onClose, onRetry }) {
   const passed = score >= quiz.passingScore;
   const jobTier = quiz.jobGuaranteeScore && score >= quiz.jobGuaranteeScore;
-  const isCert = quiz.id === 'certification';
+  const isCert = !!quiz.jobGuaranteeScore;
 
   return (
     <MotiView
@@ -50,7 +50,7 @@ function ResultView({ quiz, score, correct, total, onClose, onRetry }) {
       {passed && isCert && (
         <View style={styles.certCard}>
           <Text style={styles.certHeading}>CERTIFICATE OF COMPLETION</Text>
-          <Text style={styles.certCourse}>Prompt Engineering & Token Mastery</Text>
+          <Text style={styles.certCourse}>{courseTitle}</Text>
           <Text style={styles.certLine}>Score: {score}% · {score >= 89 ? 'Distinction' : 'Pass'}</Text>
           <Text style={styles.certLine}>Issued: {new Date().toLocaleDateString()}</Text>
           <View style={styles.certSeal}>
@@ -78,9 +78,17 @@ function ResultView({ quiz, score, correct, total, onClose, onRetry }) {
 }
 
 export default function QuizScreen({ route, navigation }) {
-  const { quizId } = route.params || {};
-  const quiz = PROMPT_COURSE_QUIZZES[quizId];
+  const { quizId, courseId: courseIdParam } = route.params || {};
   const { submitQuizScore } = useApp();
+
+  // Resolve which course owns this quiz (fallback to scanning all courses)
+  const courseId = useMemo(
+    () => courseIdParam || findCourseForQuiz(quizId),
+    [courseIdParam, quizId],
+  );
+  const bundle = courseId ? getCourseBundle(courseId) : null;
+  const quiz = bundle?.quizzes?.[quizId];
+  const courseTitle = bundle?.meta?.title || '';
 
   const [answers, setAnswers] = useState({});
   const [current, setCurrent] = useState(0);
@@ -135,6 +143,7 @@ export default function QuizScreen({ route, navigation }) {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <ResultView
             quiz={quiz}
+            courseTitle={courseTitle}
             score={result.score}
             correct={result.correct}
             total={total}

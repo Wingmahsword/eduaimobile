@@ -8,25 +8,25 @@ import GlassCard from '../components/GlassCard';
 import ScalePressable from '../components/ScalePressable';
 import { colors, spacing, radius, typography } from '../constants/theme';
 import { CATEGORIES } from '../constants/data';
-import { PROMPT_COURSE_ID } from '../constants/promptCourse';
+import { COMPREHENSIVE_COURSE_IDS, getCourseBundle } from '../constants/comprehensiveCourses';
 import { useApp } from '../context/AppContext';
 
-function FeaturedCourseHero({ course, onPress, onEnroll, progress }) {
+function FeaturedCourseHero({ course, onPress, onEnroll, progress, accent, secondary, index = 0 }) {
   return (
     <MotiView
       from={{ opacity: 0, translateY: 20 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index * 80 }}
     >
       <ScalePressable onPress={onPress} scaleDown={0.985}>
         <LinearGradient
-          colors={['rgba(124,109,250,0.32)', 'rgba(94,234,212,0.20)', 'rgba(244,114,182,0.18)']}
+          colors={[accent + '52', secondary + '33', 'rgba(244,114,182,0.18)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.featuredCard}
         >
           <View style={styles.featuredBadgeRow}>
-            <View style={styles.featuredBadge}>
+            <View style={[styles.featuredBadge, { backgroundColor: accent + '66', borderColor: accent + 'AA' }]}>
               <Ionicons name="sparkles" size={11} color="#fff" />
               <Text style={styles.featuredBadgeText}>FEATURED · NEW</Text>
             </View>
@@ -62,19 +62,21 @@ function FeaturedCourseHero({ course, onPress, onEnroll, progress }) {
               <View style={styles.priceRow}>
                 <Text style={styles.priceCurrent}>₹{course.price}</Text>
                 <View style={styles.discountChip}>
-                  <Text style={styles.discountText}>98% OFF</Text>
+                  <Text style={styles.discountText}>
+                    {Math.max(50, Math.round((1 - course.price / course.originalPrice) * 100))}% OFF
+                  </Text>
                 </View>
               </View>
             </View>
             <ScalePressable onPress={course.enrolled ? onPress : onEnroll} scaleDown={0.92}>
               <LinearGradient
-                colors={course.enrolled ? ['#5EEAD4', '#7C6DFA'] : ['#7C6DFA', '#F472B6']}
+                colors={course.enrolled ? [secondary, accent] : [accent, '#F472B6']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.enrollButton}
               >
                 <Text style={styles.enrollButtonText}>
-                  {course.enrolled ? 'Continue Learning' : 'Enroll · ₹149'}
+                  {course.enrolled ? 'Continue Learning' : `Enroll · ₹${course.price}`}
                 </Text>
                 <Ionicons name="arrow-forward" size={14} color="#fff" />
               </LinearGradient>
@@ -84,14 +86,14 @@ function FeaturedCourseHero({ course, onPress, onEnroll, progress }) {
           {course.enrolled && (
             <View style={styles.progressRow}>
               <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: secondary }]} />
               </View>
               <Text style={styles.progressLabel}>{progress}% complete</Text>
             </View>
           )}
 
           <View style={styles.guaranteeRow}>
-            <Ionicons name="shield-checkmark" size={13} color="#5EEAD4" />
+            <Ionicons name="shield-checkmark" size={13} color={secondary} />
             <Text style={styles.guaranteeText}>{course.jobGuarantee}</Text>
           </View>
         </LinearGradient>
@@ -133,6 +135,15 @@ function CourseCard({ course, index, onPress }) {
   );
 }
 
+function progressForCourse(courseId, completedLessons) {
+  const bundle = getCourseBundle(courseId);
+  if (!bundle) return 0;
+  const owned = completedLessons.filter((l) =>
+    bundle.months.some((m) => m.weeks.some((w) => w.lessons.some((ll) => ll.id === l))),
+  );
+  return Math.round((owned.length / (bundle.meta.totalLessons || 48)) * 100);
+}
+
 export default function CoursesScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const { courses, completedLessons, enrollCourse } = useApp();
@@ -140,21 +151,31 @@ export default function CoursesScreen({ navigation }) {
   const [showFilter, setShowFilter] = useState(false);
 
   const isCompact = width < 390;
-  const featured = useMemo(() => courses.find((c) => c.id === PROMPT_COURSE_ID), [courses]);
+
+  // All comprehensive (featured) courses, ordered by registry
+  const featuredCourses = useMemo(
+    () =>
+      COMPREHENSIVE_COURSE_IDS.map((id) => {
+        const c = courses.find((cc) => cc.id === id);
+        const bundle = getCourseBundle(id);
+        return c && bundle ? { course: c, bundle } : null;
+      }).filter(Boolean),
+    [courses],
+  );
+
   const otherCourses = useMemo(() => {
-    const rest = courses.filter((c) => c.id !== PROMPT_COURSE_ID);
+    const featuredIds = new Set(COMPREHENSIVE_COURSE_IDS);
+    const rest = courses.filter((c) => !featuredIds.has(c.id));
     return filter === 'All' ? rest : rest.filter((c) => c.category === filter);
   }, [courses, filter]);
 
-  const progress = featured ? Math.round((completedLessons.length / (featured.totalLessons || 48)) * 100) : 0;
-
-  const goToDetail = () => {
-    navigation.navigate('CourseDetail', { courseId: PROMPT_COURSE_ID });
+  const goToDetail = (courseId) => {
+    navigation.navigate('CourseDetail', { courseId });
   };
 
-  const handleEnroll = async () => {
-    if (!featured.enrolled) await enrollCourse(featured.id);
-    goToDetail();
+  const handleEnroll = async (course) => {
+    if (!course.enrolled) await enrollCourse(course.id);
+    goToDetail(course.id);
   };
 
   return (
@@ -204,14 +225,21 @@ export default function CoursesScreen({ navigation }) {
         contentContainerStyle={[styles.scrollContent, { paddingHorizontal: isCompact ? spacing.md : spacing.lg }]}
         showsVerticalScrollIndicator={false}
       >
-        {featured && (
+        {featuredCourses.length > 0 && (
           <View style={styles.featuredWrap}>
-            <FeaturedCourseHero
-              course={featured}
-              progress={progress}
-              onPress={goToDetail}
-              onEnroll={handleEnroll}
-            />
+            {featuredCourses.map(({ course, bundle }, idx) => (
+              <View key={course.id} style={idx > 0 && styles.featuredGap}>
+                <FeaturedCourseHero
+                  course={course}
+                  index={idx}
+                  accent={bundle.accent}
+                  secondary={bundle.secondary}
+                  progress={progressForCourse(course.id, completedLessons)}
+                  onPress={() => goToDetail(course.id)}
+                  onEnroll={() => handleEnroll(course)}
+                />
+              </View>
+            ))}
           </View>
         )}
 
@@ -269,6 +297,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingTop: 16, paddingBottom: 140 },
 
   featuredWrap: { marginBottom: 24 },
+  featuredGap: { marginTop: 14 },
   featuredCard: {
     borderRadius: radius.xl, padding: 20, gap: 14,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',

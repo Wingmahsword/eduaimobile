@@ -1,4 +1,5 @@
 import { PROMPT_COURSE_META } from './promptCourse';
+import { ML_COURSE_META } from './mlCourse';
 
 export const COURSES = [
   {
@@ -9,6 +10,15 @@ export const COURSES = [
     duration: '12 weeks · 48 lessons',
     price: 149,
     description: PROMPT_COURSE_META.description,
+  },
+  {
+    ...ML_COURSE_META,
+    instructor: 'University of Tübingen',
+    category: 'Machine Learning',
+    level: 'Beginner → Pro',
+    duration: '12 weeks · 48 lessons',
+    price: 149,
+    description: ML_COURSE_META.description,
   },
   { id: 'caltech_cs156',   title: 'Learning from Data',                      instructor: 'Caltech (Yaser Abu-Mostafa)', category: 'Machine Learning',   level: 'Beginner',     duration: '18 lectures',   price: 110, description: 'Introductory ML covering VC Dimension, bias-variance tradeoff, SVMs, kernels, and fundamental learning principles.', url: 'https://www.youtube.com/playlist?list=PLD63A284B7615313A' },
   { id: 'stanford_cs229',  title: 'CS229: Machine Learning',                 instructor: 'Stanford University',         category: 'Machine Learning',   level: 'Intermediate', duration: '20+ lectures',  price: 199, description: "Stanford's legendary ML course: linear regression, SVMs, kernels, decision trees, neural networks, and debugging ML models.", url: 'https://www.youtube.com/playlist?list=PLoROMvodv4rMiGQp3WXShtMGgzqpfVfbU' },

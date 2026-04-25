@@ -6,37 +6,27 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import ScalePressable from '../components/ScalePressable';
 import { spacing, radius, typography } from '../constants/theme';
-import { PROMPT_COURSE_MONTHS, LESSON_TYPES } from '../constants/promptCourse';
+import {
+  LESSON_TYPES,
+  findLessonInCourse,
+  findNextLessonInCourse,
+  findCourseForLesson,
+} from '../constants/comprehensiveCourses';
 import { useApp } from '../context/AppContext';
 
-function findLessonById(id) {
-  for (const month of PROMPT_COURSE_MONTHS) {
-    for (const week of month.weeks) {
-      const found = week.lessons.find((l) => l.id === id);
-      if (found) return { lesson: found, week, month };
-    }
-  }
-  return null;
-}
-
-function findNextLessonId(id) {
-  let foundCurrent = false;
-  for (const month of PROMPT_COURSE_MONTHS) {
-    for (const week of month.weeks) {
-      for (const l of week.lessons) {
-        if (foundCurrent) return l.id;
-        if (l.id === id) foundCurrent = true;
-      }
-    }
-  }
-  return null;
-}
-
 export default function LessonScreen({ route, navigation }) {
-  const { lessonId } = route.params || {};
+  const { lessonId, courseId: courseIdParam } = route.params || {};
   const { completedLessons, markLessonComplete } = useApp();
 
-  const ctx = useMemo(() => findLessonById(lessonId), [lessonId]);
+  // Allow navigation by lessonId alone — fall back to whichever course owns it.
+  const courseId = useMemo(
+    () => courseIdParam || findCourseForLesson(lessonId),
+    [courseIdParam, lessonId],
+  );
+  const ctx = useMemo(
+    () => (courseId ? findLessonInCourse(courseId, lessonId) : null),
+    [courseId, lessonId],
+  );
   if (!ctx) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
@@ -51,9 +41,9 @@ export default function LessonScreen({ route, navigation }) {
 
   const onComplete = () => {
     markLessonComplete(lesson.id);
-    const next = findNextLessonId(lesson.id);
+    const next = findNextLessonInCourse(courseId, lesson.id);
     if (next) {
-      navigation.replace('Lesson', { lessonId: next });
+      navigation.replace('Lesson', { lessonId: next, courseId });
     }
   };
 
